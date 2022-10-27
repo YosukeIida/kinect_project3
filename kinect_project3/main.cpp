@@ -41,9 +41,9 @@
 
 int main() {
 
-    cv::Mat rgbaImg;        // rgba画像rgba画像に変換して表示
-    cv::Mat depthImg;       // グレースケール画像 デプスデータをグレースケールに変換して表示
-    cv::Mat depthcoloredImg;    // depthImgをカラー画像にして境界などを描画して表示
+    cv::Mat rgbaImg;        // rgbセンサのイメージハンドルの画像データをrgba画像に変換して表示
+    cv::Mat depthImg;       // デプスセンサのイメージハンドルのデプスデータをグレースケールに変換して表示
+    cv::Mat depthcoloredImg;    // depthImgをカラー画像に変換して境界などを描画して表示
 
     // 変数宣言
     k4a_capture_t capture;      // kinectのキャプチャハンドル
@@ -52,15 +52,15 @@ int main() {
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
         // k4a_image_t は画像データと関連するメタデータを管理する
-    k4a_image_t color_image;    // キャプチャのカラー画像のハンドル
-    k4a_image_t depth_image;    // キャプチャのデプス画像のハンドル
+    k4a_image_t color_image;    // キャプチャのカラーセンサのハンドル
+    k4a_image_t depth_image;    // キャプチャのデプスセンサのハンドル
 
-        // カラー画像
+        // カラーセンサ
     int32_t color_image_height;         // カラー画像の高さ
     int32_t color_image_width;          // 幅
     uint8_t* color_image_buffer;        // カラー画像のポインタ
 
-        // デプス画像
+        // デプスセンサ
     int32_t depth_image_height;         // デプス画像の高さ
     int32_t depth_image_width;          // 幅
     uint8_t* depth_image_buffer;        // デプス画像のポインタ
