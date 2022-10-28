@@ -12,25 +12,26 @@
 #include <opencv2/opencv.hpp>
 
 // Kinectクラス
-class Kinect {
+class MyKinect {
 
-    // メンバ変数
+// デバイスについてのメンバ変数
 private:
-    // デバイスについての変数
     uint32_t device_count;      // pcに接続しているkinectの数
     size_t serial_size;         // 接続しているkinectのシリアルナンバー
     char* serial_number;        // シリアルナンバー
-    k4a_device_configuration_t device_configuration;   // kinectのカメラモード設定変数
-
-public:
+    k4a_device_configuration_t device_configuration;   // デバイスのカメラモード設定変数
     k4a_device_t device;        // kinectのデバイスハンドル
+
+//
+
+// カラーセンサについてのメンバ変数
 
 
 // メンバ関数
 public:
     // コンストラクタ
-    Kinect();
+    MyKinect();
     // デストラクタ
-    ~Kinect();
+    ~MyKinect();
 };
 

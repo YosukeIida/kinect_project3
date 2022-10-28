@@ -10,10 +10,10 @@
 #include <k4a/k4a.h>
 #include <opencv2/opencv.hpp>
 
-#include "kinect.h"         // 自作ヘッダ
+#include "mykinect.h"         // 自作ヘッダ
 
 // コンストラクタ
-Kinect::Kinect():
+MyKinect::MyKinect():
     device(NULL),
     device_configuration(K4A_DEVICE_CONFIG_INIT_DISABLE_ALL),
     serial_size(0)
@@ -59,11 +59,13 @@ Kinect::Kinect():
 }
 
 // デストラクタ
-Kinect::~Kinect()
+MyKinect::~MyKinect()
 {
     k4a_device_stop_cameras(device);
     std::cout << "stop device" << std::endl;
     k4a_device_close(device);
     std::cout << "close device" << std::endl;
 }
+
+
 

@@ -27,7 +27,7 @@
 #include <opencv2/opencv.hpp>       // opencv347
 #include <k4a/k4a.h>                // azure kinect sdk
 
-#include "kinect.h"     // 自作ヘッダ
+#include "mykinect.h"     // 自作ヘッダ
 
 
 //  Visual C++でコンパイルするときにリンクするライブラリファイル
@@ -69,7 +69,7 @@ int main() {
         // インスタンスの生成
         // インスタンスの生成時にコンストラクタが呼び出される
         // コンストラクタでデバイスのオープン, カメラ構成設定, カメラのスタートを行う
-    Kinect kinect;
+    MyKinect mykinect;
 
 
         // tryブロックの中で例外処理を throw() で記述する
@@ -77,7 +77,7 @@ int main() {
     try
     {
         while (true) {
-            switch (k4a_device_get_capture(kinect.device, &capture, 1000)) {
+            switch (k4a_device_get_capture(mykinect.device, &capture, 1000)) {
             case K4A_WAIT_RESULT_SUCCEEDED:
                 break;      // メインループ抜ける
             case K4A_WAIT_RESULT_TIMEOUT:
@@ -94,7 +94,8 @@ int main() {
         depth_image = k4a_capture_get_depth_image(capture);
 
 
-            // カラー画像のハンドルから画像のデータ
+            // カラー画像のハンドルから画像のデータ，高さ，幅を取得する
+
 
 
 
