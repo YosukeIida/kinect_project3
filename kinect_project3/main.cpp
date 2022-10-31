@@ -41,7 +41,7 @@
 
 int main() {
 
-    cv::Mat rgbaImg;        // rgbセンサのイメージハンドルの画像データをrgba画像に変換して表示
+    cv::Mat rgbaImg;        // カラーセンサのイメージハンドルの画像データをrgba画像に変換して表示
     cv::Mat depthImg;       // デプスセンサのイメージハンドルのデプスデータをグレースケールに変換して表示
     cv::Mat depthcoloredImg;    // depthImgをカラー画像に変換して境界などを描画して表示
 
@@ -52,32 +52,35 @@ int main() {
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
         // k4a_image_t は画像データと関連するメタデータを管理する
-    k4a_image_t color_image;    // キャプチャのカラーセンサのハンドル
-    k4a_image_t depth_image;    // キャプチャのデプスセンサのハンドル
+    k4a_image_t color_image_handle;    // キャプチャのカラーセンサのハンドル
+    k4a_image_t depth_image_handle;    // キャプチャのデプスセンサのハンドル
 
-        // カラーセンサ
-    int32_t color_image_height;         // カラー画像の高さ
+        // カラーイメージ
+    int32_t color_image_height;         // カラーイメージの高さ
     int32_t color_image_width;          // 幅
-    uint8_t* color_image_buffer;        // カラー画像のポインタ
+    uint8_t* color_image_buffer;        // カラーイメージのデータのポインタ
 
-        // デプスセンサ
-    int32_t depth_image_height;         // デプス画像の高さ
+        // デプスイメージ
+    int32_t depth_image_height;         // デプスイメージの高さ
     int32_t depth_image_width;          // 幅
-    uint8_t* depth_image_buffer;        // デプス画像のポインタ
+    uint8_t* depth_image_buffer;        // デプスイメージのデータのポインタ
 
 
         // インスタンスの生成
         // インスタンスの生成時にコンストラクタが呼び出される
         // コンストラクタでデバイスのオープン, カメラ構成設定, カメラのスタートを行う
-    MyKinect mykinect;
+    KinectDevice kinectdevice;
 
 
         // tryブロックの中で例外処理を throw() で記述する
         // 例外が発生した場合tryブロックの下にあるcatchブロックが実行される
     try
     {
+            // 無限ループ
         while (true) {
-            switch (k4a_device_get_capture(mykinect.device, &capture, 1000)) {
+
+                // キャプチャが成功しているかどうかを調べる
+            switch (k4a_device_get_capture(kinectdevice.device, &capture, 1000)) {
             case K4A_WAIT_RESULT_SUCCEEDED:
                 break;      // メインループ抜ける
             case K4A_WAIT_RESULT_TIMEOUT:
@@ -86,19 +89,40 @@ int main() {
             case K4A_WAIT_RESULT_FAILED:
                 throw std::runtime_error("キャプチャに失敗しました");
             }
+
+                // キャプチャハンドルからカラーイメージのハンドルを取得する
+            color_image_handle = k4a_capture_get_color_image(capture);
+                // キャプチャハンドルからデプスイメージのハンドルを取得する
+            depth_image_handle = k4a_capture_get_depth_image(capture);
+
+
+                // カラーイメージのハンドルから画像のデータ，高さ，幅を取得する
+            if (color_image_handle) {
+                color_image_height = k4a_image_get_height_pixels(color_image_handle);
+                color_image_width = k4a_image_get_width_pixels(color_image_handle);
+
+                color_image_buffer = k4a_image_get_buffer(color_image_handle);
+
+                    // カラーセンサのデータをRGBA画像に変換する
+                rgbaImg = cv::Mat(color_image_height, color_image_width, CV_8UC4);      //4ch RGBA画像
+                rgbaImg.data = color_image_buffer;
+            }
+
+
+                // デプスイメージのハンドルから深度データ，高さ，幅を取得する
+            if (depth_image_handle) {
+                depth_image_height = k4a_image_get_height_pixels(depth_image_handle);
+                depth_image_width = k4a_image_get_width_pixels(depth_image_handle);
+
+                depth_image_buffer = k4a_image_get_buffer(depth_image_handle);
+
+                    // 
+            }
+
+
+
+
         }
-
-            // キャプチャハンドルからカラー画像のハンドルを取得する
-        color_image = k4a_capture_get_color_image(capture);
-            // キャプチャハンドルからデプス画像のハンドルを取得する
-        depth_image = k4a_capture_get_depth_image(capture);
-
-
-            // カラー画像のハンドルから画像のデータ，高さ，幅を取得する
-
-
-
-
     }
     catch (const std::exception &ex)
     {

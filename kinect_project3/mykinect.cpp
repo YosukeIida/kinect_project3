@@ -13,7 +13,7 @@
 #include "mykinect.h"         // 自作ヘッダ
 
 // コンストラクタ
-MyKinect::MyKinect():
+KinectDevice::KinectDevice():
     device(NULL),
     device_configuration(K4A_DEVICE_CONFIG_INIT_DISABLE_ALL),
     serial_size(0)
@@ -59,7 +59,7 @@ MyKinect::MyKinect():
 }
 
 // デストラクタ
-MyKinect::~MyKinect()
+KinectDevice::~KinectDevice()
 {
     k4a_device_stop_cameras(device);
     std::cout << "stop device" << std::endl;

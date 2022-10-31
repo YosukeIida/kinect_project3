@@ -11,8 +11,8 @@
 #include <k4a/k4a.h>
 #include <opencv2/opencv.hpp>
 
-// Kinectクラス
-class MyKinect {
+// Kinectデバイス用クラス
+class KinectDevice {
 
 // デバイスについてのメンバ変数
 private:
@@ -20,18 +20,14 @@ private:
     size_t serial_size;         // 接続しているkinectのシリアルナンバー
     char* serial_number;        // シリアルナンバー
     k4a_device_configuration_t device_configuration;   // デバイスのカメラモード設定変数
-    k4a_device_t device;        // kinectのデバイスハンドル
-
-//
-
-// カラーセンサについてのメンバ変数
-
+public:
+    k4a_device_t device;        // kinectのデバイスハンドル (mainの中で直接呼び出すためpublic)
 
 // メンバ関数
 public:
     // コンストラクタ
-    MyKinect();
+    KinectDevice();
     // デストラクタ
-    ~MyKinect();
+    ~KinectDevice();
 };
 
