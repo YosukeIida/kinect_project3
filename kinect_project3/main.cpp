@@ -35,7 +35,7 @@
 #pragma comment(lib, "opencv_core347.lib")
 #pragma comment(lib, "opencv_imgproc347.lib")
 #pragma comment(lib, "opencv_videoio347.lib")
-#pragma comment(lib, "opencv_highgui3347.lib")
+#pragma comment(lib, "opencv_highgui347.lib")
 
 
 
@@ -65,6 +65,13 @@ int main() {
     int32_t depth_image_width;          // 幅
     uint8_t* depth_image_buffer;        // デプスイメージのデータのポインタ
 
+        // 計測対象の上下左右の端の座標を格納
+    int32_t depth_data_point_left;
+    int32_t depth_data_point_right;
+    int32_t depth_data_point_upper;
+    int32_t depth_data_point_lower;
+
+    int32_t key;
 
         // インスタンスの生成
         // インスタンスの生成時にコンストラクタが呼び出される
@@ -78,7 +85,7 @@ int main() {
     {
             // 無限ループ
         while (true) {
-
+            
                 // キャプチャが成功しているかどうかを調べる
             switch (k4a_device_get_capture(kinectdevice.device, &capture, 1000)) {
             case K4A_WAIT_RESULT_SUCCEEDED:
@@ -116,12 +123,79 @@ int main() {
 
                 depth_image_buffer = k4a_image_get_buffer(depth_image_handle);
 
-                    // 
+                    // デプスセンサのデータをグレースケール画像に変換する
+                depthImg = cv::Mat(depth_image_height, depth_image_width, CV_8UC1);
+
+                for (int y = 0; y < depth_image_height; y++) {
+                    for (int x = 0; x < depth_image_width; x++) {
+                        int address = y * depth_image_width + x;
+
+                            // グレースケール画像作成 350mm:255, 605mm:0
+                        if (depth_image_buffer[address] >= 350 && depth_image_buffer[address] < 350 + 255) {
+                            depthImg.data[address] = 255 - (depth_image_buffer[address] - 350);
+                        }
+                        else if (depth_image_buffer[address] == 0) {
+                            depthImg.data[address] = 255;
+                        }
+                        else {
+                            depthImg.data[address] = 0;
+                        }
+                    }
+                }
+
+                    // デプス画像(グレースケール)からカラー画像を作成
+                cv::cvtColor(depthImg, depthcoloredImg, cv::COLOR_GRAY2BGR);
+
+                // 緑線を表示
+                for (int x = 0; x < depth_image_width; x++) {
+                    depthcoloredImg.at<cv::Vec3b>(288, x)[1] = 255;
+                }
+                for (int y = 0; y < depth_image_height; y++) {
+                    depthcoloredImg.at<cv::Vec3b>(y, 320)[1] = 255;
+                }
+
+
+                // 左側を探索
+                for (int x = 150; x < 550; x++) {
+                    int address = 288 * depth_image_width + x;
+                        // 計測対象の0mmの測定できない縁の内側を検出する
+                    if (depth_image_buffer[address] < 600 && depth_image_buffer[address] != 0) {
+                        for (int y = 0; y < depth_image_height; y++) {
+                            depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
+                        }
+                        depth_data_point_left = x;
+                        break;
+                    }
+                }
+
+                // 右側を探索
+                for (int x = depth_data_point_left; x < 550; x++) {
+                    int address = 288 * depth_image_width + x;
+                        // 
+                    if (depth_image_buffer[address] < 600 && depth_image_buffer[address + 1] == 0) {
+                        for (int y = 0; y < depth_image_height; y++) {
+                            depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
+                        }
+                        depth_data_point_right = x;
+                        break;
+                    }
+                }
+
+                cv::imshow("depthcoloredImg", depthcoloredImg);
+                cv::imshow("depth image", depthImg);
+
+
             }
+            cv::waitKey(1);
 
+            k4a_image_release(color_image_handle);
+            k4a_image_release(depth_image_handle);
+            k4a_capture_release(capture);
 
-
-
+            key = cv::waitKey(1);
+            if (key == 'q') {
+                break;      // メインループ抜ける
+            }
         }
     }
     catch (const std::exception &ex)
