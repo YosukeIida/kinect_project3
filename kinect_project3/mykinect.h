@@ -20,8 +20,7 @@ private:
     size_t serial_size;         // 接続しているkinectのシリアルナンバー
     char* serial_number;        // シリアルナンバー
     k4a_device_configuration_t device_configuration;   // デバイスのカメラモード設定変数
-public:
-    k4a_device_t device;        // kinectのデバイスハンドル (mainの中で直接呼び出すためpublic)
+    k4a_device_t device;        // kinectのデバイスハンドル
 
 // メンバ関数
 public:
@@ -29,5 +28,15 @@ public:
     KinectDevice();
     // デストラクタ
     ~KinectDevice();
+
+    // private変数 device のゲッター
+    k4a_device_t getdevice();
+};
+
+
+class ColorSensor {
+
+private:
+
 };
 

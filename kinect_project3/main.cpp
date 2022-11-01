@@ -63,7 +63,7 @@ int main() {
         // デプスイメージ
     int32_t depth_image_height;         // デプスイメージの高さ
     int32_t depth_image_width;          // 幅
-    uint8_t* depth_image_buffer;        // デプスイメージのデータのポインタ
+    uint16_t* depth_image_buffer;        // デプスイメージのデータのポインタ
 
         // 計測対象の上下左右の端の座標を格納
     int32_t depth_data_point_left;
@@ -87,7 +87,7 @@ int main() {
         while (true) {
             
                 // キャプチャが成功しているかどうかを調べる
-            switch (k4a_device_get_capture(kinectdevice.device, &capture, 1000)) {
+            switch (k4a_device_get_capture(kinectdevice.getdevice(), &capture, 1000)) {
             case K4A_WAIT_RESULT_SUCCEEDED:
                 break;      // メインループ抜ける
             case K4A_WAIT_RESULT_TIMEOUT:
@@ -121,7 +121,7 @@ int main() {
                 depth_image_height = k4a_image_get_height_pixels(depth_image_handle);
                 depth_image_width = k4a_image_get_width_pixels(depth_image_handle);
 
-                depth_image_buffer = k4a_image_get_buffer(depth_image_handle);
+                depth_image_buffer =(uint16_t*) k4a_image_get_buffer(depth_image_handle);
 
                     // デプスセンサのデータをグレースケール画像に変換する
                 depthImg = cv::Mat(depth_image_height, depth_image_width, CV_8UC1);

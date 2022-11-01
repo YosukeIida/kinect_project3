@@ -12,6 +12,7 @@
 
 #include "mykinect.h"         // 自作ヘッダ
 
+
 // コンストラクタ
 KinectDevice::KinectDevice():
     device(NULL),
@@ -58,6 +59,7 @@ KinectDevice::KinectDevice():
     }
 }
 
+
 // デストラクタ
 KinectDevice::~KinectDevice()
 {
@@ -67,5 +69,10 @@ KinectDevice::~KinectDevice()
     std::cout << "close device" << std::endl;
 }
 
+
+// private変数 device のゲッター
+k4a_device_t KinectDevice::getdevice() {
+    return device;
+}
 
 
