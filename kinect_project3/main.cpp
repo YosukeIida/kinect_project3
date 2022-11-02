@@ -1,5 +1,5 @@
 
-//--------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //  2022/10/25作成
 //  kinect_project2をまとめ直す
 //
@@ -18,7 +18,7 @@
 //      C:\opencv347\build\install\lib      (自宅用 opencv347)
 //      C:\Program Files\Azure Kinect SDK v1.4.1\sdk\windows-desktop\amd64\release\lib          (自宅用 kinect sdk 1.4.1)
 //
-//---------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 #include <iostream>
 #include <string>       // to_string()で使用
@@ -27,7 +27,7 @@
 #include <opencv2/opencv.hpp>       // opencv347
 #include <k4a/k4a.h>                // azure kinect sdk
 
-#include "mykinect.h"     // 自作ヘッダ
+#include "kinect.h"     // 自作ヘッダ
 
 
 //  Visual C++でコンパイルするときにリンクするライブラリファイル
@@ -39,31 +39,37 @@
 
 
 
+void get_color_image_data(colorimage) {
+    colorimage.colorimage_height =
+}
+
+
 int main() {
 
     cv::Mat rgbaImg;        // カラーセンサのイメージハンドルの画像データをrgba画像に変換して表示
     cv::Mat depthImg;       // デプスセンサのイメージハンドルのデプスデータをグレースケールに変換して表示
     cv::Mat depthcoloredImg;    // depthImgをカラー画像に変換して境界などを描画して表示
 
-    // 変数宣言
-    k4a_capture_t capture;      // kinectのキャプチャハンドル
-                                // ほぼ同時にデバイスで記録したColor，Depth，Irなどの一連のデータを表す．
-
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
         // k4a_image_t は画像データと関連するメタデータを管理する
-    k4a_image_t color_image_handle;    // キャプチャのカラーセンサのハンドル
-    k4a_image_t depth_image_handle;    // キャプチャのデプスセンサのハンドル
+    k4a_capture_t capture;      // kinectのキャプチャハンドル
+                                // ほぼ同時にデバイスで記録したColor，Depth，Irなどの一連のデータを表す．
 
         // カラーイメージ
+    k4a_image_t color_image_handle;     // キャプチャのカラーセンサのハンドル
+
     int32_t color_image_height;         // カラーイメージの高さ
     int32_t color_image_width;          // 幅
     uint8_t* color_image_buffer;        // カラーイメージのデータのポインタ
 
         // デプスイメージ
+    k4a_image_t depth_image_handle;    // キャプチャのデプスセンサのハンドル
+
     int32_t depth_image_height;         // デプスイメージの高さ
     int32_t depth_image_width;          // 幅
     uint16_t* depth_image_buffer;        // デプスイメージのデータのポインタ
+
 
         // 計測対象の上下左右の端の座標を格納
     int32_t depth_data_point_left;
@@ -77,6 +83,8 @@ int main() {
         // インスタンスの生成時にコンストラクタが呼び出される
         // コンストラクタでデバイスのオープン, カメラ構成設定, カメラのスタートを行う
     KinectDevice kinectdevice;
+    ColorImage colorimage;
+    DepthImage depthimage;
 
 
         // tryブロックの中で例外処理を throw() で記述する
@@ -87,7 +95,7 @@ int main() {
         while (true) {
             
                 // キャプチャが成功しているかどうかを調べる
-            switch (k4a_device_get_capture(kinectdevice.getdevice(), &capture, 1000)) {
+            switch (k4a_device_get_capture(kinectdevice.device, &kinectdevice.capture, 1000)) {
             case K4A_WAIT_RESULT_SUCCEEDED:
                 break;      // メインループ抜ける
             case K4A_WAIT_RESULT_TIMEOUT:
@@ -98,13 +106,15 @@ int main() {
             }
 
                 // キャプチャハンドルからカラーイメージのハンドルを取得する
-            color_image_handle = k4a_capture_get_color_image(capture);
+            colorimage.color_image_handle = k4a_capture_get_color_image(kinectdevice.capture);
                 // キャプチャハンドルからデプスイメージのハンドルを取得する
-            depth_image_handle = k4a_capture_get_depth_image(capture);
+            depthimage.depth_image_handle = k4a_capture_get_depth_image(kinectdevice.capture);
 
 
                 // カラーイメージのハンドルから画像のデータ，高さ，幅を取得する
-            if (color_image_handle) {
+            if (colorimage.color_image_handle) {
+                void get_color_image_data(colorimage);
+
                 color_image_height = k4a_image_get_height_pixels(color_image_handle);
                 color_image_width = k4a_image_get_width_pixels(color_image_handle);
 
@@ -204,4 +214,5 @@ int main() {
     }
     return 0;
 }
+
 

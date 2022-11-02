@@ -15,7 +15,7 @@
 class KinectDevice {
 
 // デバイスについてのメンバ変数
-private:
+public:
     uint32_t device_count;      // pcに接続しているkinectの数
     size_t serial_size;         // 接続しているkinectのシリアルナンバー
     char* serial_number;        // シリアルナンバー
@@ -23,20 +23,9 @@ private:
     k4a_device_t device;        // kinectのデバイスハンドル
 
 // メンバ関数
-public:
     // コンストラクタ
     KinectDevice();
     // デストラクタ
     ~KinectDevice();
-
-    // private変数 device のゲッター
-    k4a_device_t getdevice();
-};
-
-
-class ColorSensor {
-
-private:
-
 };
 

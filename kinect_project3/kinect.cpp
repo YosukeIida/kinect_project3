@@ -10,7 +10,7 @@
 #include <k4a/k4a.h>
 #include <opencv2/opencv.hpp>
 
-#include "mykinect.h"         // 自作ヘッダ
+#include "kinect.h"         // 自作ヘッダ
 
 
 // コンストラクタ
@@ -68,11 +68,3 @@ KinectDevice::~KinectDevice()
     k4a_device_close(device);
     std::cout << "close device" << std::endl;
 }
-
-
-// private変数 device のゲッター
-k4a_device_t KinectDevice::getdevice() {
-    return device;
-}
-
-
