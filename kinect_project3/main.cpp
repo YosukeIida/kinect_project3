@@ -39,10 +39,19 @@
 
 
 
-void get_color_image_data(colorimage) {
-    colorimage.colorimage_height =
+void get_color_image_data(k4a_image_t* color_image_handle, int32_t* color_image_height, int32_t* color_image_width, uint8_t** color_image_buffer) {
+    *color_image_height = k4a_image_get_height_pixels(*color_image_handle);
+    *color_image_width = k4a_image_get_width_pixels(*color_image_handle);
+
+    *color_image_buffer = k4a_image_get_buffer(*color_image_handle);
 }
 
+void get_depth_image_data(k4a_image_t* depth_image_handle, int32_t* depth_image_height, int32_t* depth_image_width, uint16_t** depth_image_buffer) {
+    *depth_image_height = k4a_image_get_height_pixels(*depth_image_handle);
+    *depth_image_width = k4a_image_get_width_pixels(*depth_image_handle);
+
+    *depth_image_buffer = (uint16_t*)k4a_image_get_buffer(*depth_image_handle);
+}
 
 int main() {
 
@@ -79,12 +88,10 @@ int main() {
 
     int32_t key;
 
-        // インスタンスの生成
-        // インスタンスの生成時にコンストラクタが呼び出される
+
+        // インスタンスの生成 生成時にコンストラクタが呼び出される
         // コンストラクタでデバイスのオープン, カメラ構成設定, カメラのスタートを行う
     KinectDevice kinectdevice;
-    ColorImage colorimage;
-    DepthImage depthimage;
 
 
         // tryブロックの中で例外処理を throw() で記述する
@@ -95,7 +102,7 @@ int main() {
         while (true) {
             
                 // キャプチャが成功しているかどうかを調べる
-            switch (k4a_device_get_capture(kinectdevice.device, &kinectdevice.capture, 1000)) {
+            switch (k4a_device_get_capture(kinectdevice.device, &capture, 1000)) {
             case K4A_WAIT_RESULT_SUCCEEDED:
                 break;      // メインループ抜ける
             case K4A_WAIT_RESULT_TIMEOUT:
@@ -106,20 +113,15 @@ int main() {
             }
 
                 // キャプチャハンドルからカラーイメージのハンドルを取得する
-            colorimage.color_image_handle = k4a_capture_get_color_image(kinectdevice.capture);
+            color_image_handle = k4a_capture_get_color_image(capture);
                 // キャプチャハンドルからデプスイメージのハンドルを取得する
-            depthimage.depth_image_handle = k4a_capture_get_depth_image(kinectdevice.capture);
+            depth_image_handle = k4a_capture_get_depth_image(capture);
 
 
                 // カラーイメージのハンドルから画像のデータ，高さ，幅を取得する
-            if (colorimage.color_image_handle) {
-                void get_color_image_data(colorimage);
-
-                color_image_height = k4a_image_get_height_pixels(color_image_handle);
-                color_image_width = k4a_image_get_width_pixels(color_image_handle);
-
-                color_image_buffer = k4a_image_get_buffer(color_image_handle);
-
+            if (color_image_handle) {
+                get_color_image_data(&color_image_handle, &color_image_height, &color_image_width, &color_image_buffer);
+                
                     // カラーセンサのデータをRGBA画像に変換する
                 rgbaImg = cv::Mat(color_image_height, color_image_width, CV_8UC4);      //4ch RGBA画像
                 rgbaImg.data = color_image_buffer;
@@ -128,10 +130,7 @@ int main() {
 
                 // デプスイメージのハンドルから深度データ，高さ，幅を取得する
             if (depth_image_handle) {
-                depth_image_height = k4a_image_get_height_pixels(depth_image_handle);
-                depth_image_width = k4a_image_get_width_pixels(depth_image_handle);
-
-                depth_image_buffer =(uint16_t*) k4a_image_get_buffer(depth_image_handle);
+                get_depth_image_data(&depth_image_handle, &depth_image_height, &depth_image_width, &depth_image_buffer);
 
                     // デプスセンサのデータをグレースケール画像に変換する
                 depthImg = cv::Mat(depth_image_height, depth_image_width, CV_8UC1);
@@ -196,6 +195,7 @@ int main() {
 
 
             }
+            cv::imshow("rgbaImg",rgbaImg);
             cv::waitKey(1);
 
             k4a_image_release(color_image_handle);
