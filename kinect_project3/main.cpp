@@ -53,6 +53,10 @@ void get_depth_image_data(k4a_image_t* depth_image_handle, int32_t* depth_image_
     *depth_image_buffer = (uint16_t*)k4a_image_get_buffer(*depth_image_handle);
 }
 
+void make_depthImg(cv::Mat* depthImg, int32_t* depth_image_height, int32_t* depth_image_width, uint16_t** depth_image_buffer) {
+
+}
+
 int main() {
 
     cv::Mat rgbaImg;        // カラーセンサのイメージハンドルの画像データをrgba画像に変換して表示
@@ -134,6 +138,7 @@ int main() {
 
                     // デプスセンサのデータをグレースケール画像に変換する
                 depthImg = cv::Mat(depth_image_height, depth_image_width, CV_8UC1);
+                make_depthImg(&depthImg, &depth_image_height, &depth_image_width, &depth_image_buffer);
 
                 for (int y = 0; y < depth_image_height; y++) {
                     for (int x = 0; x < depth_image_width; x++) {
