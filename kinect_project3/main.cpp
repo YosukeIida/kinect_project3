@@ -53,8 +53,32 @@ void get_depth_image_data(k4a_image_t* depth_image_handle, int32_t* depth_image_
     *depth_image_buffer = (uint16_t*)k4a_image_get_buffer(*depth_image_handle);
 }
 
-void make_depthImg(cv::Mat* depthImg, int32_t* depth_image_height, int32_t* depth_image_width, uint16_t** depth_image_buffer) {
+void make_depthImg(cv::Mat* depthImg, int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
+    for (int y = 0; y < depth_image_height; y++) {
+        for (int x = 0; x < depth_image_width; x++) {
+            int address = y * depth_image_width + x;
 
+                // グレースケール画像作成 350mmを白(255), 605mmを黒(0)で255段階
+            if (depth_image_buffer[address] >= 350 && depth_image_buffer[address] < 350 + 255) {
+                depthImg->data[address] = 255 - (depth_image_buffer[address] - 350);
+            }
+            else if (depth_image_buffer[address] == 0) {
+                depthImg->data[address] = 255;
+            }
+            else {
+                depthImg->data[address] = 0;
+            }
+        }
+    }
+}
+
+void draw_centerline(cv::Mat* depthcoloredImg, int32_t depth_image_height, int32_t depth_image_width) {
+    for (int x = 0; x < depth_image_width; x++) {
+        depthcoloredImg->at<cv::Vec3b>(depth_image_height/2, x) = cv::Vec3b(0, 255, 0);
+    }
+    for (int y = 0; y < depth_image_height; y++) {
+        depthcoloredImg->at<cv::Vec3b>(y, depth_image_width/2) = cv::Vec3b(0, 255, 0);
+    }
 }
 
 int main() {
@@ -138,36 +162,25 @@ int main() {
 
                     // デプスセンサのデータをグレースケール画像に変換する
                 depthImg = cv::Mat(depth_image_height, depth_image_width, CV_8UC1);
-                make_depthImg(&depthImg, &depth_image_height, &depth_image_width, &depth_image_buffer);
-
-                for (int y = 0; y < depth_image_height; y++) {
-                    for (int x = 0; x < depth_image_width; x++) {
-                        int address = y * depth_image_width + x;
-
-                            // グレースケール画像作成 350mm:255, 605mm:0
-                        if (depth_image_buffer[address] >= 350 && depth_image_buffer[address] < 350 + 255) {
-                            depthImg.data[address] = 255 - (depth_image_buffer[address] - 350);
-                        }
-                        else if (depth_image_buffer[address] == 0) {
-                            depthImg.data[address] = 255;
-                        }
-                        else {
-                            depthImg.data[address] = 0;
-                        }
-                    }
-                }
+                make_depthImg(&depthImg, depth_image_height, depth_image_width, depth_image_buffer);
 
                     // デプス画像(グレースケール)からカラー画像を作成
                 cv::cvtColor(depthImg, depthcoloredImg, cv::COLOR_GRAY2BGR);
 
-                // 緑線を表示
-                for (int x = 0; x < depth_image_width; x++) {
-                    depthcoloredImg.at<cv::Vec3b>(288, x)[1] = 255;
-                }
-                for (int y = 0; y < depth_image_height; y++) {
-                    depthcoloredImg.at<cv::Vec3b>(y, 320)[1] = 255;
-                }
+                    // depthcoloredImgに中央線(緑線)を表示
+                draw_centerline(&depthcoloredImg, depth_image_height, depth_image_width);
 
+
+                    // 左側を配列に入れる
+                for (int y = 0; y < depth_image_height; y++) {
+                    for (int x = 150; x < 550; x++) {
+                        int address = y * depth_image_width + x;
+                        if (depth_image_buffer[address] < 600 && depth_image_buffer[address] != 0) {
+                            
+                        }
+                    }
+
+                }
 
                 // 左側を探索
                 for (int x = 150; x < 550; x++) {
@@ -191,6 +204,30 @@ int main() {
                             depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
                         }
                         depth_data_point_right = x;
+                        break;
+                    }
+                }
+
+                // 上側を探索
+                for (int y = 150; y < 500; y++) {
+                    int address = y * depth_image_width + (depth_data_point_left + depth_data_point_right)/2;
+                    if (depth_image_buffer[address] < 600 && depth_image_buffer[address] != 0) {
+                        for (int x = 0; x < depth_image_width; x++) {
+                            depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
+                        }
+                        depth_data_point_upper = y;
+                        break;
+                    }
+                }
+
+                // 下側を探索
+                for (int y = depth_data_point_upper; y < 500; y++) {
+                    int address = y * depth_image_width + (depth_data_point_left + depth_data_point_right) / 2;
+                    if (depth_image_buffer[address] - depth_image_buffer[address + depth_image_width] > 5) {
+                        for (int x = 0; x < depth_image_width; x++) {
+                            depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
+                        }
+                        depth_data_point_lower = y;
                         break;
                     }
                 }
