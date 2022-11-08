@@ -29,6 +29,9 @@
 
 #include "kinect.h"     // 自作ヘッダ
 
+#define DEPTH_NEAR  1250
+
+
 
 //  Visual C++でコンパイルするときにリンクするライブラリファイル
 #pragma comment(lib, "k4a.lib")
@@ -90,6 +93,12 @@ int main() {
     int32_t depth_data_point_upper;
     int32_t depth_data_point_lower;
 
+    int32_t depth_data_center_point;
+    int32_t depth_data_left_point;
+    int32_t depth_data_right_point;
+    int32_t depth_data_upper_point;
+    int32_t depth_data_lower_point;
+
     int32_t key;
 
 
@@ -145,8 +154,8 @@ int main() {
                         int address = y * depth_image_width + x;
 
                             // グレースケール画像作成 350mm:255, 605mm:0
-                        if (depth_image_buffer[address] >= 350 && depth_image_buffer[address] < 350 + 255) {
-                            depthImg.data[address] = 255 - (depth_image_buffer[address] - 350);
+                        if (depth_image_buffer[address] >= DEPTH_NEAR && depth_image_buffer[address] < DEPTH_NEAR + 255) {
+                            depthImg.data[address] = 255 - (depth_image_buffer[address] - DEPTH_NEAR);
                         }
                         else if (depth_image_buffer[address] == 0) {
                             depthImg.data[address] = 255;
@@ -168,8 +177,35 @@ int main() {
                     depthcoloredImg.at<cv::Vec3b>(y, 320)[1] = 255;
                 }
 
+                // 中央の深度を格納
+                depth_data_center_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + depth_image_width / 2];
+
+                depth_data_left_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + 20];
+                depth_data_right_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + 620];
+                depth_data_upper_point = depth_image_buffer[20 * depth_image_width + depth_image_width / 2];
+                depth_data_lower_point = depth_image_buffer[(depth_image_height - 20) * depth_image_width + depth_image_width / 2];
+
+                cv::putText(depthcoloredImg, std::to_string(depth_data_center_point), cv::Point(depth_image_width / 2, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(depthcoloredImg, std::to_string(depth_data_left_point), cv::Point(20, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(depthcoloredImg, std::to_string(depth_data_right_point), cv::Point(580, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(depthcoloredImg, std::to_string(depth_data_upper_point), cv::Point(depth_image_width / 2, 20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(depthcoloredImg, std::to_string(depth_data_lower_point), cv::Point(depth_image_width / 2, depth_image_height-20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+
+                std::cout << "center:" << depth_data_center_point << std::endl;
+                
+                // 縦青線を表示
+                for (int y = 0; y < depth_image_height; y++) {
+                    depthcoloredImg.at<cv::Vec3b>(y, 20) = cv::Vec3b(255, 0, 0);
+                    depthcoloredImg.at<cv::Vec3b>(y, 620) = cv::Vec3b(255, 0, 0);
+                }
+
+                for (int x = 0; x < depth_image_width; x++) {
+                    depthcoloredImg.at<cv::Vec3b>(20, x) = cv::Vec3b(255, 0, 0);
+                    depthcoloredImg.at<cv::Vec3b>(depth_image_height - 20, x) = cv::Vec3b(255, 0, 0);
+                }
 
                 // 左側を探索
+                depth_data_point_left = 0;
                 for (int x = 150; x < 550; x++) {
                     int address = 288 * depth_image_width + x;
                         // 計測対象の0mmの測定できない縁の内側を検出する
@@ -200,7 +236,7 @@ int main() {
 
 
             }
-            cv::imshow("rgbaImg",rgbaImg);
+//            cv::imshow("rgbaImg",rgbaImg);
             cv::waitKey(1);
 
             k4a_image_release(color_image_handle);
