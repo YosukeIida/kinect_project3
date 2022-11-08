@@ -56,8 +56,40 @@ void get_depth_image_data(k4a_image_t* depth_image_handle, int32_t* depth_image_
     *depth_image_buffer = (uint16_t*)k4a_image_get_buffer(*depth_image_handle);
 }
 
-void make_depthImg(cv::Mat* depthImg, int32_t* depth_image_height, int32_t* depth_image_width, uint16_t** depth_image_buffer) {
 
+void make_depthImg(cv::Mat* depthImg, int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
+    for (int y = 0; y < depth_image_height; y++) {
+        for (int x = 0; x < depth_image_width; x++) {
+            int address = y * depth_image_width + x;
+
+            // グレースケール画像作成 350mmを白(255), 605mmを黒(0)で255段階
+            if (depth_image_buffer[address] >= DEPTH_NEAR && depth_image_buffer[address] < DEPTH_NEAR + 255) {
+                depthImg->data[address] = 255 - (depth_image_buffer[address] - DEPTH_NEAR);
+            }
+            else if (depth_image_buffer[address] == 0) {
+                depthImg->data[address] = 255;
+            }
+            else {
+                depthImg->data[address] = 0;
+            }
+        }
+    }
+}
+
+void get_depth_surface_to_csv(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
+    const char* filename = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
+    std::ofstream file_depth_surface(filename);
+    if (!file_depth_surface) {
+        throw std::runtime_error("depth_surface.csv が開けませんでした");
+    }
+
+    for (int y = 0; y < depth_image_height; y++) {
+        for (int x = 0; x < depth_image_width; x++) {
+            int address = y * depth_image_width + x;
+            std::cout << depth_image_buffer[address] << std::endl;
+        }
+        // file_depth_surface << std::endl;
+    }
 }
 
 int main() {
@@ -82,9 +114,9 @@ int main() {
         // デプスイメージ
     k4a_image_t depth_image_handle;    // キャプチャのデプスセンサのハンドル
 
-    int32_t depth_image_height;         // デプスイメージの高さ
-    int32_t depth_image_width;          // 幅
-    uint16_t* depth_image_buffer;        // デプスイメージのデータのポインタ
+    int32_t depth_image_height = 0;         // デプスイメージの高さ
+    int32_t depth_image_width = 0;          // 幅
+    uint16_t* depth_image_buffer = 0;        // デプスイメージのデータのポインタ
 
 
         // 計測対象の上下左右の端の座標を格納
@@ -147,24 +179,24 @@ int main() {
 
                     // デプスセンサのデータをグレースケール画像に変換する
                 depthImg = cv::Mat(depth_image_height, depth_image_width, CV_8UC1);
-                make_depthImg(&depthImg, &depth_image_height, &depth_image_width, &depth_image_buffer);
+                make_depthImg(&depthImg, depth_image_height, depth_image_width, depth_image_buffer);
 
-                for (int y = 0; y < depth_image_height; y++) {
-                    for (int x = 0; x < depth_image_width; x++) {
-                        int address = y * depth_image_width + x;
+                //for (int y = 0; y < depth_image_height; y++) {
+                //    for (int x = 0; x < depth_image_width; x++) {
+                //        int address = y * depth_image_width + x;
 
-                            // グレースケール画像作成 350mm:255, 605mm:0
-                        if (depth_image_buffer[address] >= DEPTH_NEAR && depth_image_buffer[address] < DEPTH_NEAR + 255) {
-                            depthImg.data[address] = 255 - (depth_image_buffer[address] - DEPTH_NEAR);
-                        }
-                        else if (depth_image_buffer[address] == 0) {
-                            depthImg.data[address] = 255;
-                        }
-                        else {
-                            depthImg.data[address] = 0;
-                        }
-                    }
-                }
+                //            // グレースケール画像作成 350mm:255, 605mm:0
+                //        if (depth_image_buffer[address] >= DEPTH_NEAR && depth_image_buffer[address] < DEPTH_NEAR + 255) {
+                //            depthImg.data[address] = 255 - (depth_image_buffer[address] - DEPTH_NEAR);
+                //        }
+                //        else if (depth_image_buffer[address] == 0) {
+                //            depthImg.data[address] = 255;
+                //        }
+                //        else {
+                //            depthImg.data[address] = 0;
+                //        }
+                //    }
+                //}
 
                     // デプス画像(グレースケール)からカラー画像を作成
                 cv::cvtColor(depthImg, depthcoloredImg, cv::COLOR_GRAY2BGR);
@@ -191,8 +223,6 @@ int main() {
                 cv::putText(depthcoloredImg, std::to_string(depth_data_upper_point), cv::Point(depth_image_width / 2, 20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
                 cv::putText(depthcoloredImg, std::to_string(depth_data_lower_point), cv::Point(depth_image_width / 2, depth_image_height-20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
 
-                std::cout << "center:" << depth_data_center_point << std::endl;
-                
                 // 縦青線を表示
                 for (int y = 0; y < depth_image_height; y++) {
                     depthcoloredImg.at<cv::Vec3b>(y, 20) = cv::Vec3b(255, 0, 0);
@@ -236,7 +266,7 @@ int main() {
 
 
             }
-//            cv::imshow("rgbaImg",rgbaImg);
+            cv::imshow("rgbaImg",rgbaImg);
             cv::waitKey(1);
 
             k4a_image_release(color_image_handle);
@@ -247,6 +277,13 @@ int main() {
             if (key == 'q') {
                 break;      // メインループ抜ける
             }
+
+            if (key == 's') {
+                get_depth_surface_to_csv(depth_image_height, depth_image_width, depth_image_buffer);
+                std::cout << "get_depth_surface_to_csv 終了" << std::endl;
+            }
+
+
         }
     }
     catch (const std::exception &ex)
