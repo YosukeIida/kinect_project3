@@ -77,7 +77,8 @@ void make_depthImg(cv::Mat* depthImg, int32_t depth_image_height, int32_t depth_
 }
 
 void get_depth_surface_to_csv(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
-    const char* filename = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
+    //const char* filename = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
+    const char* filename = "C:\\Users\\i1811402\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
     std::ofstream file_depth_surface(filename);
     if (!file_depth_surface) {
         throw std::runtime_error("depth_surface.csv ‚ªŠJ‚¯‚Ü‚¹‚ñ‚Å‚µ‚½");
@@ -279,7 +280,21 @@ int main() {
             }
 
             if (key == 's') {
-                get_depth_surface_to_csv(depth_image_height, depth_image_width, depth_image_buffer);
+                const char* filename = "C:\\Users\\i1811402\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
+                std::ofstream file_depth_surface(filename);
+                if (!file_depth_surface) {
+                    throw std::runtime_error("depth_surface.csv ‚ªŠJ‚¯‚Ü‚¹‚ñ‚Å‚µ‚½");
+                }
+
+                for (int y = 0; y < depth_image_height; y++) {
+                    for (int x = 0; x < depth_image_width; x++) {
+                        int address = y * depth_image_width + x;
+                        int depth_data = depth_image_buffer[address];
+                        file_depth_surface << depth_data << ", ";
+                    }
+                     file_depth_surface << std::endl;
+                }
+                //get_depth_surface_to_csv(depth_image_height, depth_image_width, depth_image_buffer);
                 std::cout << "get_depth_surface_to_csv I—¹" << std::endl;
             }
 
