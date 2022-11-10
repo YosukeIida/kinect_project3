@@ -24,6 +24,10 @@
 #include <string>       // to_string()で使用
 #include <fstream>      // ofstream()で使用
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
+
 #include <opencv2/opencv.hpp>       // opencv347
 #include <k4a/k4a.h>                // azure kinect sdk
 
@@ -31,8 +35,15 @@
 
 #define DEPTH_SEARCH_BORDER  600            // 計測対象を探索する境界値 この値より手前を探索する
 #define DEPTH_IMAGE_NEAR_LIMIT  350         // グレースケール画像にする最小距離
-#define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
+#define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
+#define KINECT_ANGLE_X  75                  // NFOV Unbinnedの横の画角
+#define KINECT_ANGLE_Y  65                  // NFOV Unbinnedの縦の画角
+
+
+// #define _USE_MATH_DEFINES
+
+
 
 
 
@@ -144,6 +155,7 @@ int main() {
     int32_t depthimage_lower_point;         // デプス画像の下端の深度
 
     double angle_x;           // 中央から計測対象の中心までのx軸の角度
+    cv::Point3d measuretarget_coord;        // 計測対象の3次元座標
 
     cv::Point2i depth_coord_center;         // 計測対象の中心座標
 
@@ -207,20 +219,22 @@ int main() {
                 }
                 for (int y = 0; y < depth_image_height; y++) {
                     depthcoloredImg.at<cv::Vec3b>(y, 320)[1] = 255;
+                    depthcoloredImg.at<cv::Vec3b>(y, 480)[1] = 255;
+                    
                 }
 
-                // デプス画像の中央, 上下左右の深度を格納
-                depthimage_center_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + depth_image_width / 2];
-                depthimage_left_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + 20];
-                depthimage_right_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + 620];
-                depthimage_upper_point = depth_image_buffer[20 * depth_image_width + depth_image_width / 2];
-                depthimage_lower_point = depth_image_buffer[(depth_image_height - 20) * depth_image_width + depth_image_width / 2];
-                // デプス画像の中央, 上下左右の深度を depthcoloredImg に表示
-                cv::putText(depthcoloredImg, std::to_string(depthimage_center_point), cv::Point(depth_image_width / 2, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(depthcoloredImg, std::to_string(depthimage_left_point), cv::Point(20, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(depthcoloredImg, std::to_string(depthimage_right_point), cv::Point(580, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(depthcoloredImg, std::to_string(depthimage_upper_point), cv::Point(depth_image_width / 2, 20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(depthcoloredImg, std::to_string(depthimage_lower_point), cv::Point(depth_image_width / 2, depth_image_height-20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //// デプス画像の中央, 上下左右の深度を格納
+                //depthimage_center_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + depth_image_width / 2];
+                //depthimage_left_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + 20];
+                //depthimage_right_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + 620];
+                //depthimage_upper_point = depth_image_buffer[20 * depth_image_width + depth_image_width / 2];
+                //depthimage_lower_point = depth_image_buffer[(depth_image_height - 20) * depth_image_width + depth_image_width / 2];
+                //// デプス画像の中央, 上下左右の深度を depthcoloredImg に表示
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_center_point), cv::Point(depth_image_width / 2, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_left_point), cv::Point(20, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_right_point), cv::Point(580, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_upper_point), cv::Point(depth_image_width / 2, 20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_lower_point), cv::Point(depth_image_width / 2, depth_image_height-20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
 
                 //// 縦青線を表示
                 //for (int y = 0; y < depth_image_height; y++) {
@@ -319,12 +333,21 @@ int main() {
 
 
                 // 計測対象の中心座標を格納
-                
+                depth_coord_center.x = (depth_data_point_right + depth_data_point_left) / 2;
+                depth_coord_center.y = (depth_data_point_upper + depth_data_point_lower) / 2;
+                // 表示
+                depthcoloredImg.at<cv::Vec3b>(depth_coord_center.y, depth_coord_center.x) = cv::Vec3b(0, 255, 255);
+
+
+                // 計測対象の中心座標の深度を measuretarget_coordに格納
+                measuretarget_coord.z = depth_image_buffer[depth_coord_center.y * depth_image_width + depth_coord_center.x];
 
 
                 // カメラ中心から計測対象の中心の角度を求める(x座標)
+                    angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * KINECT_ANGLE_X / 2.0;
+                    measuretarget_coord.x = measuretarget_coord.z * sin(angle_x/180.0 * M_PI);
 
-
+                     std::cout << measuretarget_coord << std::endl;
 
 
                 cv::imshow("depthcoloredImg", depthcoloredImg);
