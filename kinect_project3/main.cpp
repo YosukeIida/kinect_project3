@@ -41,11 +41,6 @@
 #define KINECT_ANGLE_Y  65                  // NFOV Unbinnedの縦の画角
 
 
-// #define _USE_MATH_DEFINES
-
-
-
-
 
 //  Visual C++でコンパイルするときにリンクするライブラリファイル
 #pragma comment(lib, "k4a.lib")
@@ -94,7 +89,7 @@ void make_depthImg(cv::Mat* depthImg, int32_t depth_image_height, int32_t depth_
 }
 
 
-// depth_image 1キャプチャ分の bufferのデータをcsvに書き込み
+//  whileループ depth_image 1キャプチャ分の bufferのデータをcsvに書き込み
 void get_depth_surface_to_csv(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
     const char* filename = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
     //const char* filename = "C:\\Users\\i1811402\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
@@ -116,15 +111,15 @@ void get_depth_surface_to_csv(int32_t depth_image_height, int32_t depth_image_wi
 
 int main() {
 
-    cv::Mat rgbaImg;        // カラーセンサのイメージハンドルの画像データをrgba画像に変換して表示
-    cv::Mat depthImg;       // デプスセンサのイメージハンドルのデプスデータをグレースケールに変換して表示
-    cv::Mat depthcoloredImg;    // depthImgをカラー画像に変換して境界などを描画して表示
+    cv::Mat rgbaImg;                    // カラーセンサのイメージハンドルの画像データをrgba画像に変換して表示
+    cv::Mat depthImg;                   // デプスセンサのイメージハンドルのデプスデータをグレースケールに変換して表示
+    cv::Mat depthcoloredImg;            // depthImgをカラー画像に変換して境界などを描画して表示
 
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
         // k4a_image_t は画像データと関連するメタデータを管理する
-    k4a_capture_t capture;      // kinectのキャプチャハンドル
-                                // ほぼ同時にデバイスで記録したColor，Depth，Irなどの一連のデータを表す．
+    k4a_capture_t capture;              // kinectのキャプチャハンドル
+                                        // ほぼ同時にデバイスで記録したColor，Depth，Irなどの一連のデータを表す．
 
         // カラーイメージ
     k4a_image_t color_image_handle;     // キャプチャのカラーセンサのハンドル
@@ -134,7 +129,7 @@ int main() {
     uint8_t* color_image_buffer;        // カラーイメージのデータのポインタ
 
         // デプスイメージ
-    k4a_image_t depth_image_handle;    // キャプチャのデプスセンサのハンドル
+    k4a_image_t depth_image_handle;     // キャプチャのデプスセンサのハンドル
 
     int32_t depth_image_height = 0;         // デプスイメージの高さ
     int32_t depth_image_width = 0;          // デプスイメージの幅
@@ -154,8 +149,8 @@ int main() {
     int32_t depthimage_upper_point;         // デプス画像の上端の深度
     int32_t depthimage_lower_point;         // デプス画像の下端の深度
 
-    double angle_x;           // 中央から計測対象の中心までのx軸の角度
-    cv::Point3d measuretarget_coord;        // 計測対象の3次元座標
+    double angle_x;                         // 中央から計測対象の中心までのx軸の角度
+    cv::Point3d measure_target_coord;        // 計測対象の3次元座標
 
     cv::Point2i depth_coord_center;         // 計測対象の中心座標
 
@@ -219,7 +214,6 @@ int main() {
                 }
                 for (int y = 0; y < depth_image_height; y++) {
                     depthcoloredImg.at<cv::Vec3b>(y, 320)[1] = 255;
-                    depthcoloredImg.at<cv::Vec3b>(y, 480)[1] = 255;
                     
                 }
 
@@ -269,6 +263,7 @@ int main() {
                 //}
 
                 // 左側を探索
+
                 depth_data_point_left = 0;
                 for (int x = 150; x < 550; x++) {
                     int address = Y_CENTER_COORD * depth_image_width + x;
@@ -339,15 +334,15 @@ int main() {
                 depthcoloredImg.at<cv::Vec3b>(depth_coord_center.y, depth_coord_center.x) = cv::Vec3b(0, 255, 255);
 
 
-                // 計測対象の中心座標の深度を measuretarget_coordに格納
-                measuretarget_coord.z = depth_image_buffer[depth_coord_center.y * depth_image_width + depth_coord_center.x];
+                // 計測対象の中心座標の深度を measure_target_coordに格納
+                measure_target_coord.z = depth_image_buffer[depth_coord_center.y * depth_image_width + depth_coord_center.x];
 
 
                 // カメラ中心から計測対象の中心の角度を求める(x座標)
                     angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * KINECT_ANGLE_X / 2.0;
-                    measuretarget_coord.x = measuretarget_coord.z * sin(angle_x/180.0 * M_PI);
+                    measure_target_coord.x = measure_target_coord.z * sin(angle_x/180.0 * M_PI);
 
-                     std::cout << measuretarget_coord << std::endl;
+                     std::cout << measure_target_coord << std::endl;
 
 
                 cv::imshow("depthcoloredImg", depthcoloredImg);
