@@ -154,6 +154,8 @@ int main() {
 
     cv::Point2i depth_coord_center;         // 計測対象の中心座標
 
+    double depth_data_center_5x5;           // 計測対象中心深度 25マス移動平均
+
     int32_t key;
 
 
@@ -337,6 +339,8 @@ int main() {
                 // 計測対象の中心座標の深度を measure_target_coordに格納
                 measure_target_coord.z = depth_image_buffer[depth_coord_center.y * depth_image_width + depth_coord_center.x];
 
+
+                // 移動平均
 
                 // カメラ中心から計測対象の中心の角度を求める(x座標)
                     angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * KINECT_ANGLE_X / 2.0;
