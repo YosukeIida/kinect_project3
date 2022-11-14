@@ -33,8 +33,8 @@
 
 #include "kinect.h"     // 自作ヘッダ
 
-#define DEPTH_SEARCH_BORDER  600            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_NEAR_LIMIT  350         // グレースケール画像にする最小距離
+#define DEPTH_SEARCH_BORDER  800            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_IMAGE_NEAR_LIMIT  900         // グレースケール画像にする最小距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
 #define KINECT_ANGLE_X  75                  // NFOV Unbinnedの横の画角
@@ -103,10 +103,35 @@ void get_depth_surface_to_csv(int32_t depth_image_height, int32_t depth_image_wi
             int address = y * depth_image_width + x;
             file_depth_surface << depth_image_buffer[address] << ",";
         }
-         file_depth_surface << std::endl;
+        file_depth_surface << std::endl;
     }
 }
 
+
+int search_measuretarget_left(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
+    int temp_val = -1;
+    for (int x = 0; x < depth_image_width - 1; x++) {
+        int address = Y_CENTER_COORD * depth_image_width + x;
+        // 計測対象の0mmになる部分の内側を検出する
+        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && depth_image_buffer[address] != 0) {
+            temp_val = x;
+            break;
+        }
+    }
+    return temp_val;
+}
+
+int search_measuretarget_right(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer, int32_t depth_data_point_left) {
+    int temp_val = -1;
+    for (int x = depth_data_point_left + 5; depth_image_width; x++) {
+        int address = Y_CENTER_COORD * depth_image_width + x;
+        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depth_image_buffer[address] - depth_image_buffer[address + 1]), 2.0)) > 5.0) {
+            temp_val = x;
+            break;
+        }
+    }
+    return temp_val;
+}
 
 
 int main() {
@@ -265,68 +290,61 @@ int main() {
                 //}
 
                 // 左側を探索
+                depth_data_point_left = search_measuretarget_left(depth_image_height, depth_image_width, depth_image_buffer);
+                if (depth_data_point_left != -1) {
+                    // 左側 赤線を表示
+                    for (int y = 0; y < depth_image_height; y++) {
+                        depthcoloredImg.at<cv::Vec3b>(y, depth_data_point_left) = cv::Vec3b(0, 0, 255);
+                    }
+                    // 右側を探索
+                    depth_data_point_right = search_measuretarget_right(depth_image_height, depth_image_width, depth_image_buffer, depth_data_point_left);
+                    for (int y = 0; y < depth_image_height; y++) {
+                        depthcoloredImg.at<cv::Vec3b>(y, depth_data_point_right) = cv::Vec3b(0, 0, 255);
+                    }
+                    // 計測対象の左右の中間線を表示
+                    for (int y = 0; y < depth_image_height; y++) {
+                        depthcoloredImg.at<cv::Vec3b>(y, (depth_data_point_right + depth_data_point_left) / 2) = cv::Vec3b(255, 0, 0);
+                    }
+                    // 上側を探索
+                    for (int y = 1; y < depth_image_height; y++) {
+                        int address = y * depth_image_width + (depth_data_point_right + depth_data_point_left) / 2;
 
-                depth_data_point_left = 0;
-                for (int x = 150; x < 550; x++) {
-                    int address = Y_CENTER_COORD * depth_image_width + x;
-                        // 計測対象の0mmの測定できない縁の内側を検出する
-                    if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && depth_image_buffer[address] != 0) {
-                        for (int y = 0; y < depth_image_height; y++) {
-                            depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
+                        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && depth_image_buffer[address] != 0) {
+                            for ( int x = 0; x <depth_image_width; x++) {
+                                depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
+                            }
+                            depth_data_point_upper = y;
+                            break;
                         }
-                        depth_data_point_left = x;
-                        break;
+                    }
+
+
+                    // 下側を探索
+                    for (int y = depth_data_point_upper; y < 500; y++) {
+                        int address = y * depth_image_width + (depth_data_point_right + depth_data_point_left) / 2;
+
+                        if (depth_image_buffer[address] - depth_image_buffer[address + depth_image_width] > 5) {
+                            for ( int x = 0; x <depth_image_width; x++) {
+                                depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
+                            }
+                            depth_data_point_lower = y;
+                            break;
+                        }
                     }
                 }
-
-                // 右側を探索
-                for (int x = depth_data_point_left; x < 550; x++) {
-                    int address = Y_CENTER_COORD * depth_image_width + x;
-                        // 
-                    if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && depth_image_buffer[address + 1] == 0) {
-                        for (int y = 0; y < depth_image_height; y++) {
-                            depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
-                        }
-                        depth_data_point_right = x;
-                        break;
-                    }
-                }
-                // 計測対象の左右の中間線を表示
-                for (int y = 0; y < depth_image_height; y++) {
-                    depthcoloredImg.at<cv::Vec3b>(y, (depth_data_point_right + depth_data_point_left) / 2) = cv::Vec3b(255, 0, 0);
+                else {
+                    std::cout << "オブジェクト検出なし" << std::endl;
                 }
 
 
-                // 上側を探索
-                for (int y = 150; y < 500; y++) {
-                    int address = y * depth_image_width + (depth_data_point_right + depth_data_point_left) / 2;
 
-                    if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && depth_image_buffer[address] != 0) {
-                        for ( int x = 0; x <depth_image_width; x++) {
-                            depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
-                        }
-                        depth_data_point_upper = y;
-                        break;
-                    }
-                }
+                
 
 
-                // 下側を探索
-                for (int y = depth_data_point_upper; y < 500; y++) {
-                    int address = y * depth_image_width + (depth_data_point_right + depth_data_point_left) / 2;
-
-                    if (depth_image_buffer[address] - depth_image_buffer[address + depth_image_width] > 5) {
-                        for ( int x = 0; x <depth_image_width; x++) {
-                            depthcoloredImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
-                        }
-                        depth_data_point_lower = y;
-                        break;
-                    }
-                }
-                // 計測対象の上下の中間線を表示
-                for (int x = 0; x < depth_image_width; x++) {
-                    depthcoloredImg.at<cv::Vec3b>((depth_data_point_upper + depth_data_point_lower) / 2, x) = cv::Vec3b(255, 0, 0);
-                }
+                //// 計測対象の上下の中間線を表示
+                //for (int x = 0; x < depth_image_width; x++) {
+                //    depthcoloredImg.at<cv::Vec3b>((depth_data_point_upper + depth_data_point_lower) / 2, x) = cv::Vec3b(255, 0, 0);
+                //}
 
 
                 // 計測対象の中心座標を格納
