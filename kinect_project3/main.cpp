@@ -33,12 +33,12 @@
 
 #include "kinect.h"     // 自作ヘッダ
 
-#define DEPTH_SEARCH_BORDER  800            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_SEARCH_BORDER  700            // 計測対象を探索する境界値 この値より手前を探索する
 #define DEPTH_IMAGE_NEAR_LIMIT  900         // グレースケール画像にする最小距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
-#define KINECT_ANGLE_X  75                  // NFOV Unbinnedの横の画角
-#define KINECT_ANGLE_Y  65                  // NFOV Unbinnedの縦の画角
+#define NFOV_FOI_HOR  (75.0 / 2.0) / 180.0 * (double)M_PI                  // NFOV Unbinnedの水平視野角
+#define NFOV_FOI_VERT  (65.0 / 2.0) / 180.0 * (double)M_PI                  // NFOV Unbinnedの垂直視野角
 
 
 
@@ -132,6 +132,33 @@ int search_measuretarget_right(int32_t depth_image_height, int32_t depth_image_w
     }
     return temp_val;
 }
+
+int search_measuretarget_upper(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer, int32_t depth_data_point_left, int32_t depth_data_point_right) {
+    int temp_val = -1;
+    for (int y = 0; y < depth_image_width - 1; y++) {
+        int address = y * depth_image_width + (depth_data_point_right + depth_data_point_left) / 2;
+
+    }
+
+}
+
+
+cv::Point3d depth2world(int32_t depth_image_height, int32_t depth_image_width, cv::Point3d measure_target_coord, cv::Point2i depth_coord_center){
+    double z_distance;      // 距離
+    double x_max_distance;       // 距離がdistanceの時の最大視野(mm)
+    double x_distance_pixcel;
+    
+    z_distance = measure_target_coord.z;
+
+    x_max_distance = sin(NFOV_FOI_HOR) / cos(NFOV_FOI_HOR) * z_distance;
+    x_distance_pixcel = depth_coord_center.x - (depth_image_width / 2);
+    measure_target_coord.x = x_distance_pixcel * x_max_distance / (depth_image_width / 2);
+    return measure_target_coord;
+
+
+    
+}
+
 
 
 int main() {
@@ -361,10 +388,10 @@ int main() {
                 // 移動平均
 
                 // カメラ中心から計測対象の中心の角度を求める(x座標)
-                    angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * KINECT_ANGLE_X / 2.0;
-                    measure_target_coord.x = measure_target_coord.z * sin(angle_x/180.0 * M_PI);
-
-                     std::cout << measure_target_coord << std::endl;
+                //angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * NFOV_FOI_HOR / 2.0;
+                //measure_target_coord.x = ((depth_coord_center.x - X_CENTER_COORD) * measure_target_coord.z * tan(NFOV_FOI_HOR/2.0/180.0*M_PI)) / X_CENTER_COORD;
+                measure_target_coord = depth2world(depth_image_height, depth_image_width, measure_target_coord, depth_coord_center);
+                std::cout << measure_target_coord << std::endl;
 
 
                 cv::imshow("depthcoloredImg", depthcoloredImg);
