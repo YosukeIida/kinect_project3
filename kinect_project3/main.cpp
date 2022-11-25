@@ -33,9 +33,9 @@
 
 #include "kinect.h"     // 自作ヘッダ
 
-#define DEPTH_SEARCH_BORDER  750            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_NEAR_LIMIT  600         // グレースケール画像にする最小距離
-#define DEPTH_IMAGE_FAR_LIMIT   800
+#define DEPTH_SEARCH_BORDER  720            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_IMAGE_NEAR_LIMIT  700         // グレースケール画像にする最小距離
+#define DEPTH_IMAGE_FAR_LIMIT   750
          // グレースケール画像にする最大距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
@@ -97,7 +97,7 @@ void make_depthrangeImg(cv::Mat* depthrangeImg, int32_t depth_image_height, int3
 
             // グレースケール画像作成 350mmを白(255), 605mmを黒(0)で255段階
             if (depth_image_buffer[address] >= DEPTH_IMAGE_NEAR_LIMIT && depth_image_buffer[address] < DEPTH_IMAGE_FAR_LIMIT) {
-                depthrangeImg->data[address] =(depth_image_buffer[address] - DEPTH_IMAGE_NEAR_LIMIT) * (255/DEPTH_IMAGE_FAR_LIMIT - DEPTH_IMAGE_NEAR_LIMIT);
+                depthrangeImg->data[address] =(depth_image_buffer[address] - DEPTH_IMAGE_NEAR_LIMIT) * (255/(DEPTH_IMAGE_FAR_LIMIT - DEPTH_IMAGE_NEAR_LIMIT));
             }
             else if (depth_image_buffer[address] == 0) {
                 depthrangeImg->data[address] = 0;
@@ -170,7 +170,7 @@ int search_measuretarget_lower(int32_t depth_image_height, int32_t depth_image_w
     int temp_val = -1;
     for (int y = depth_data_point_upper + 5; y < depth_image_height; y++) {
         int address = y * depth_image_width + (depth_data_point_right + depth_data_point_left) / 2;
-        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depth_image_buffer[address] - depth_image_buffer[address + depth_image_width]), 2.0)) > 5.0) {
+        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depth_image_buffer[address] - depth_image_buffer[address + depth_image_width]), 2.0)) > 3.0) {
             temp_val = y;
             break;
         }
@@ -246,13 +246,20 @@ int main() {
     int32_t depthimage_lower_point;         // デプス画像の下端の深度
 
     double angle_x;                         // 中央から計測対象の中心までのx軸の角度
-    cv::Point3d measure_target_coord;        // 計測対象の3次元座標
+    cv::Point3d measure_target_coord;        // 計測対象の3次元座標 [mm]
 
-    cv::Point2i depth_coord_center;         // 計測対象の中心座標
+    cv::Point2i depth_coord_center;         // 計測対象の中心座標 [pixcel]
 
     double depth_data_center_5x5;           // 計測対象中心深度 25マス移動平均
 
     int32_t key;
+    int32_t flag_measure_target_coord = -1;      // 3次元座標[mm]をcsvに記録を行うフラグ
+
+    const char* filename_mtc = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\a.csv";
+    std::ofstream fp_measure_target_coord(filename_mtc);
+    if (!fp_measure_target_coord) {
+        throw std::runtime_error("a.csv が開けませんでした");
+    }
 
 
         // インスタンスの生成 生成時にコンストラクタが呼び出される
@@ -352,20 +359,20 @@ int main() {
                             if (scan_line_upper == -1) {
                                 scan_line_upper = y;
                             }
-                            scan_line_lower = y;
+                            //scan_line_lower = y;
                             break;
                         }
                     }
                 }
                 //std::cout << scan_line_upper << scan_line_lower << std::endl;
-
+                scan_line_lower = scan_line_upper + 20;
                 int scan_line = (scan_line_upper + scan_line_lower) / 2;
-                //for (int x = 0; x < depth_image_width; x++) {
-                //    if (scan_line_upper != -1) {
-                //        depthcoloredImg.at<cv::Vec3b>(scan_line_upper, x) = cv::Vec3b(255, 255, 0);
-                //        depthcoloredImg.at<cv::Vec3b>(scan_line_lower, x) = cv::Vec3b(255, 255, 0);
-                //    }
-                //}
+                for (int x = 0; x < depth_image_width; x++) {
+                    if (scan_line_upper != -1) {
+                        depthcoloredImg.at<cv::Vec3b>(scan_line_upper, x) = cv::Vec3b(255, 255, 0);
+                        depthcoloredImg.at<cv::Vec3b>(scan_line_lower, x) = cv::Vec3b(255, 255, 0);
+                    }
+                }
 
                 // 左側を探索
                 if (scan_line > 0) {
@@ -429,10 +436,18 @@ int main() {
 
 
                 // 計測対象の中心座標の深度を measure_target_coordに格納
-                measure_target_coord.z = depth_image_buffer[depth_coord_center.y * depth_image_width + depth_coord_center.x];
+                //measure_target_coord.z = depth_image_buffer[depth_coord_center.y * depth_image_width + depth_coord_center.x];
 
 
                 // 移動平均
+                depth_data_center_5x5 = 0.0;
+                for (int x = depth_coord_center.x - 2; x <= depth_coord_center.x + 2; x++) {
+                    for (int y = depth_coord_center.y - 2; y <= depth_coord_center.y + 2; y++) {
+                        depth_data_center_5x5 += depth_image_buffer[y * depth_image_width + x] / 25.0;
+                    }
+                }
+                measure_target_coord.z = depth_data_center_5x5;
+
 
                 // カメラ中心から計測対象の中心の角度を求める(x座標)
                 //angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * NFOV_FOI_HOR / 2.0;
@@ -445,6 +460,14 @@ int main() {
                 cv::imshow("depthrangeImg", depthrangeImg);
                 cv::imshow("depth image", depthImg);
 
+                if (flag_measure_target_coord != -1 && flag_measure_target_coord < 100) {
+                    fp_measure_target_coord << measure_target_coord.x <<"," << measure_target_coord.y <<"," <<measure_target_coord.z << std::endl;
+                    flag_measure_target_coord++;
+                }
+                if (flag_measure_target_coord == 100) {
+                    std::cout << "3次元データ記録終了" << std::endl;
+                    flag_measure_target_coord = -1;
+                }
 
             }
             cv::waitKey(1);
@@ -459,6 +482,11 @@ int main() {
                 std::cout << "get_depth_surface_to_csv 開始" << std::endl;
                 get_depth_surface_to_csv(depth_image_height, depth_image_width, depth_image_buffer);
                 std::cout << "get_depth_surface_to_csv 終了" << std::endl;
+            }
+
+            if (key == 'p' && flag_measure_target_coord == -1) {
+                std::cout << "3次元データ記録開始" << std::endl;
+                flag_measure_target_coord = 0;
             }
 
             k4a_image_release(color_image_handle);
