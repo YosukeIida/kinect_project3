@@ -33,9 +33,9 @@
 
 #include "kinect.h"     // 自作ヘッダ
 
-#define DEPTH_SEARCH_BORDER  720            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_NEAR_LIMIT  700         // グレースケール画像にする最小距離
-#define DEPTH_IMAGE_FAR_LIMIT   750
+#define DEPTH_SEARCH_BORDER  620            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_IMAGE_FAR_LIMIT   650
+#define DEPTH_IMAGE_NEAR_LIMIT  550         // グレースケール画像にする最小距離
          // グレースケール画像にする最大距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
@@ -197,7 +197,7 @@ cv::Point3d depth2world(int32_t depth_image_height, int32_t depth_image_width, c
     // y方向
     y_max_distance = sin(NFOV_FOI_VERT) / cos(NFOV_FOI_VERT) * z_distance;
     y_distance_pixcel = depth_coord_center.y - (depth_image_height / 2);
-    measure_target_coord.y = y_distance_pixcel * x_max_distance / (depth_image_height / 2);
+    measure_target_coord.y = y_distance_pixcel * x_max_distance / (depth_image_height / 2) * -1.0; // スクリーン座標とワールド座標を逆にする
     return measure_target_coord;
 
 }
