@@ -197,7 +197,7 @@ cv::Point3d depth2world(int32_t depth_image_height, int32_t depth_image_width, c
     // y方向
     y_max_distance = sin(NFOV_FOI_VERT) / cos(NFOV_FOI_VERT) * z_distance;
     y_distance_pixcel = depth_coord_center.y - (depth_image_height / 2);
-    measure_target_coord.y = y_distance_pixcel * x_max_distance / (depth_image_height / 2) * -1.0; // スクリーン座標とワールド座標を逆にする
+    measure_target_coord.y = y_distance_pixcel * -1.0 * y_max_distance / (depth_image_height / 2); // スクリーン座標とワールド座標を逆にする
     return measure_target_coord;
 
 }
