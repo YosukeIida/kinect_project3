@@ -461,7 +461,7 @@ int main() {
                 cv::imshow("depth image", depthImg);
 
                 if (flag_measure_target_coord != -1 && flag_measure_target_coord < 100) {
-                    fp_measure_target_coord << measure_target_coord.x <<"," << measure_target_coord.y <<"," <<measure_target_coord.z << std::endl;
+                    fp_measure_target_coord << measure_target_coord.x <<"," << measure_target_coord.y <<"," <<measure_target_coord.z << "," << depth_coord_center.x << "," << depth_coord_center.y << std::endl;
                     flag_measure_target_coord++;
                 }
                 if (flag_measure_target_coord == 100) {
