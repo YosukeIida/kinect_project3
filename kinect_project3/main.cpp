@@ -33,6 +33,11 @@
 
 #include "kinect.h"     // 自作ヘッダ
 
+#define DEPTH_WIDTH         640
+#define DEPTH_HEIGHT        576
+#define COLOR_WIDTH         1920
+#define COLOR_HEIGHT        1080
+
 #define DEPTH_SEARCH_BORDER  620            // 計測対象を探索する境界値 この値より手前を探索する
 #define DEPTH_IMAGE_FAR_LIMIT   650
 #define DEPTH_IMAGE_NEAR_LIMIT  550         // グレースケール画像にする最小距離
@@ -53,27 +58,23 @@
 
 
 // capture から color_imageを取得
-void get_color_image_data(k4a_image_t* color_image_handle, int32_t* color_image_height, int32_t* color_image_width, uint8_t** color_image_buffer) {
-    *color_image_height = k4a_image_get_height_pixels(*color_image_handle);
-    *color_image_width = k4a_image_get_width_pixels(*color_image_handle);
+void get_color_image_data(k4a_image_t* color_image_handle, uint8_t** color_image_buffer) {
 
     *color_image_buffer = k4a_image_get_buffer(*color_image_handle);
 }
 
 
 // capture から depth_imageを取得
-void get_depth_image_data(k4a_image_t* depth_image_handle, int32_t* depth_image_height, int32_t* depth_image_width, uint16_t** depth_image_buffer) {
-    *depth_image_height = k4a_image_get_height_pixels(*depth_image_handle);
-    *depth_image_width = k4a_image_get_width_pixels(*depth_image_handle);
-
+void get_depth_image_data(k4a_image_t* depth_image_handle, uint16_t** depth_image_buffer) {
+    
     *depth_image_buffer = (uint16_t*)k4a_image_get_buffer(*depth_image_handle);
 }
 
 
 // グレースケールのデプス画像を作成
-void make_depthImg(cv::Mat* depthImg, int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
-    for (int y = 0; y < depth_image_height; y++) {
-        for (int x = 0; x < depth_image_width; x++) {
+void make_depthImg(cv::Mat* depthImg, uint16_t* depth_image_buffer) {
+    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+        for (int x = 0; x < DEPTH_WIDTH; x++) {
             int address = y * depth_image_width + x;
 
             // グレースケール画像作成 350mmを白(255), 605mmを黒(0)で255段階
@@ -211,6 +212,8 @@ int main() {
     cv::Mat depthrangeImg;
     cv::Mat depthcoloredImg;            // depthImgをカラー画像に変換して境界などを描画して表示
 
+    cv::Mat depthdata;                  // 配列
+
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
         // k4a_image_t は画像データと関連するメタデータを管理する
@@ -220,15 +223,11 @@ int main() {
         // カラーイメージ
     k4a_image_t color_image_handle;     // キャプチャのカラーセンサのハンドル
 
-    int32_t color_image_height;         // カラーイメージの高さ
-    int32_t color_image_width;          // カラーイメージの幅
     uint8_t* color_image_buffer;        // カラーイメージのデータのポインタ
 
         // デプスイメージ
     k4a_image_t depth_image_handle;     // キャプチャのデプスセンサのハンドル
 
-    int32_t depth_image_height = 0;         // デプスイメージの高さ
-    int32_t depth_image_width = 0;          // デプスイメージの幅
     uint16_t* depth_image_buffer = 0;        // デプスイメージのデータのポインタ
 
 
@@ -260,11 +259,9 @@ int main() {
     if (!fp_measure_target_coord) {
         throw std::runtime_error("a.csv が開けませんでした");
     }
-
-
-        // インスタンスの生成 生成時にコンストラクタが呼び出される
-        // コンストラクタでデバイスのオープン, カメラ構成設定, カメラのスタートを行う
     KinectDevice kinectdevice;
+
+
 
 
         // tryブロックの中で例外処理を throw() で記述する
@@ -274,6 +271,9 @@ int main() {
             // 無限ループ
         while (true) {
             
+                // インスタンスの生成 生成時にコンストラクタが呼び出される
+                // コンストラクタでデバイスのオープン, カメラ構成設定, カメラのスタートを行う
+
                 // キャプチャが成功しているかどうかを調べる
             switch (k4a_device_get_capture(kinectdevice.device, &capture, 1000)) {
             case K4A_WAIT_RESULT_SUCCEEDED:
@@ -291,27 +291,30 @@ int main() {
             depth_image_handle = k4a_capture_get_depth_image(capture);
 
 
-                // カラーイメージのハンドルから画像のデータ，高さ，幅を取得する
             if (color_image_handle) {
-                get_color_image_data(&color_image_handle, &color_image_height, &color_image_width, &color_image_buffer);
+                // カラーイメージのハンドルから画像のデータ，高さ，幅を取得する
+                get_color_image_data(&color_image_handle, &color_image_buffer);
                 
-                    // カラーセンサのデータをRGBA画像に変換する
-                rgbaImg = cv::Mat(color_image_height, color_image_width, CV_8UC4);      //4ch RGBA画像
+                // カラーセンサのデータをRGBA画像に変換する
+                rgbaImg = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4);      //4ch RGBA画像
                 rgbaImg.data = color_image_buffer;
                 cv::imshow("rgbaImg",rgbaImg);
             }
 
 
-                // デプスイメージのハンドルから深度データ，高さ，幅を取得する
             if (depth_image_handle) {
-                get_depth_image_data(&depth_image_handle, &depth_image_height, &depth_image_width, &depth_image_buffer);
+                // デプスイメージのハンドルから深度データ，高さ，幅を取得する
+                get_depth_image_data(&depth_image_handle, &depth_image_buffer);
 
-                    // デプスセンサのデータをグレースケール画像に変換する
-                depthImg = cv::Mat(depth_image_height, depth_image_width, CV_8UC1);
-                make_depthImg(&depthImg, depth_image_height, depth_image_width, depth_image_buffer);
+                // uint8_t* depth_image_bufferの深度データをcv::Mat depthdata(CV_32S : 符号付32ビット整数)の配列に格納する
+                void set_distance(depthdata, depth_image_buffer);
 
-                depthrangeImg = cv::Mat(depth_image_height, depth_image_width, CV_8UC1);
-                make_depthrangeImg(&depthrangeImg, depth_image_height, depth_image_width, depth_image_buffer);
+                // デプスセンサのデータをグレースケール画像に変換する
+                depthImg = cv::Mat(DEPTH_HEIGHT, DEPTH_WIDTH, CV_8UC1);
+                make_depthImg(&depthImg, depth_image_buffer);
+
+                depthrangeImg = cv::Mat(DEPTH_HEIGHT, DEPTH_WIDTH, CV_8UC1);
+                make_depthrangeImg(&depthrangeImg, depth_image_buffer);
 
                     // デプス画像(グレースケール)からカラー画像を作成
                 cv::cvtColor(depthImg, depthcoloredImg, cv::COLOR_GRAY2BGR);
@@ -468,30 +471,42 @@ int main() {
                     std::cout << "3次元データ記録終了" << std::endl;
                     flag_measure_target_coord = -1;
                 }
-
-            }
-            cv::waitKey(1);
-
-
-            key = cv::waitKey(1);
-            if (key == 'q') {
-                break;      // メインループ抜ける
-            }
-
-            if (key == 's') {
-                std::cout << "get_depth_surface_to_csv 開始" << std::endl;
-                get_depth_surface_to_csv(depth_image_height, depth_image_width, depth_image_buffer);
-                std::cout << "get_depth_surface_to_csv 終了" << std::endl;
-            }
-
-            if (key == 'p' && flag_measure_target_coord == -1) {
-                std::cout << "3次元データ記録開始" << std::endl;
-                flag_measure_target_coord = 0;
-            }
-
             k4a_image_release(color_image_handle);
             k4a_image_release(depth_image_handle);
             k4a_capture_release(capture);
+
+            }
+        }
+        cv::waitKey(1);
+        cv::Mat image = cv::Mat::zeros(500, 500, CV_8UC3);
+
+        int cols = image.cols;
+        int rows = image.rows;
+        for (int j = 0; j < rows; j++) {
+            for (int i = 0; i < cols; i++) {
+                image.at<cv::Vec3b>(j, i)[0] = 255; //青
+                image.at<cv::Vec3b>(j, i)[1] = 255; //緑
+                image.at<cv::Vec3b>(j, i)[2] = 255; //赤
+            }
+        }
+
+        cv::imshow("image", image);
+
+
+        key = cv::waitKey(1);
+        if (key == 'q') {
+            break;      // メインループ抜ける
+        }
+
+        if (key == 's') {
+            std::cout << "get_depth_surface_to_csv 開始" << std::endl;
+            get_depth_surface_to_csv(depth_image_height, depth_image_width, depth_image_buffer);
+            std::cout << "get_depth_surface_to_csv 終了" << std::endl;
+        }
+
+        if (key == 'p' && flag_measure_target_coord == -1) {
+            std::cout << "3次元データ記録開始" << std::endl;
+            flag_measure_target_coord = 0;
         }
     }
     catch (const std::exception &ex)
