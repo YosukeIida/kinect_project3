@@ -23,6 +23,7 @@
 #include <iostream>
 #include <string>       // to_string()で使用
 #include <fstream>      // ofstream()で使用
+#include <vector>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -31,7 +32,7 @@
 #include <opencv2/opencv.hpp>       // opencv347
 #include <k4a/k4a.h>                // azure kinect sdk
 
-#include "kinect.h"     // 自作ヘッダ
+#include "kinectdevice.h"     // 自作ヘッダ
 
 #define DEPTH_WIDTH         640
 #define DEPTH_HEIGHT        576
@@ -57,6 +58,18 @@
 #pragma comment(lib, "opencv_highgui347.lib")
 
 
+//関数宣言
+void get_color_image_data(k4a_image_t* color_image_handle, uint8_t** color_image_buffer);
+void get_depth_image_data(k4a_image_t* depth_image_handle, uint16_t** depth_image_buffer);
+void set_distance(std::vector<std::vector<int32_t> >&depthdata, uint16_t * depth_image_buffer);
+void make_depthImg(cv::Mat* depthImg, uint16_t* depth_image_buffer);
+void make_depthImg_2darray(cv::Mat* depthImgtemp, std::vector<std::vector<int32_t> > depthdata);
+void make_depthrangeImg(cv::Mat* depthrangeImg, std::vector<std::vector<int32_t> > depthdata);
+
+
+
+
+
 // capture から color_imageを取得
 void get_color_image_data(k4a_image_t* color_image_handle, uint8_t** color_image_buffer) {
 
@@ -71,11 +84,24 @@ void get_depth_image_data(k4a_image_t* depth_image_handle, uint16_t** depth_imag
 }
 
 
+// depth_image_buffer の深度データから2次元vector配列を作成  (2次元配列にする)
+void set_distance(std::vector<std::vector<int32_t> >& depthdata, uint16_t* depth_image_buffer) {
+    int ptr = 0;
+    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+        for (int x = 0; x < DEPTH_WIDTH; x++) {
+            depthdata[x][y] = depth_image_buffer[ptr];
+            ptr++;
+        }
+    }
+}
+
+
 // グレースケールのデプス画像を作成
+// depth_image_buffer をラスタ操作で depthImg.data に深度データを入れていく．
 void make_depthImg(cv::Mat* depthImg, uint16_t* depth_image_buffer) {
     for (int y = 0; y < DEPTH_HEIGHT; y++) {
         for (int x = 0; x < DEPTH_WIDTH; x++) {
-            int address = y * depth_image_width + x;
+            int address = y * DEPTH_WIDTH + x;
 
             // グレースケール画像作成 350mmを白(255), 605mmを黒(0)で255段階
             if (depth_image_buffer[address] >= DEPTH_IMAGE_NEAR_LIMIT && depth_image_buffer[address] < DEPTH_IMAGE_NEAR_LIMIT + 255) {
@@ -91,51 +117,77 @@ void make_depthImg(cv::Mat* depthImg, uint16_t* depth_image_buffer) {
     }
 }
 
-void make_depthrangeImg(cv::Mat* depthrangeImg, int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
-    for (int y = 0; y < depth_image_height; y++) {
-        for (int x = 0; x < depth_image_width; x++) {
-            int address = y * depth_image_width + x;
+
+// グレースケールのデプス画像を作成
+// 2次元配列からdepthImgを作成する
+void make_depthImg_2darray(cv::Mat* depthImgtemp, std::vector<std::vector<int32_t> > depthdata) {
+    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+        for (int x = 0; x < DEPTH_WIDTH; x++) {
 
             // グレースケール画像作成 350mmを白(255), 605mmを黒(0)で255段階
-            if (depth_image_buffer[address] >= DEPTH_IMAGE_NEAR_LIMIT && depth_image_buffer[address] < DEPTH_IMAGE_FAR_LIMIT) {
-                depthrangeImg->data[address] =(depth_image_buffer[address] - DEPTH_IMAGE_NEAR_LIMIT) * (255/(DEPTH_IMAGE_FAR_LIMIT - DEPTH_IMAGE_NEAR_LIMIT));
+            if (depthdata[x][y] >= DEPTH_IMAGE_NEAR_LIMIT && depthdata[x][y] < DEPTH_IMAGE_NEAR_LIMIT + 255) {
+                depthImgtemp->at<uint8_t>(y, x) = 255 - (depthdata[x][y] - DEPTH_IMAGE_NEAR_LIMIT);
             }
-            else if (depth_image_buffer[address] == 0) {
-                depthrangeImg->data[address] = 0;
+            else if (depthdata[x][y] == 0) {
+                depthImgtemp->at<uint8_t>(y, x) = 255;
             }
             else {
-                depthrangeImg->data[address] = 0;
+                depthImgtemp->at<uint8_t>(y, x) = 0;
             }
         }
     }
 }
 
 
-//  whileループ depth_image 1キャプチャ分の bufferのデータをcsvに書き込み
-void get_depth_surface_to_csv(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer) {
-    const char* filename = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
-    //const char* filename = "C:\\Users\\i1811402\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
-    std::ofstream file_depth_surface(filename);
-    if (!file_depth_surface) {
-        throw std::runtime_error("depth_surface.csv が開けませんでした");
-    }
+// グレースケールのデプス画像を作成
+// DEPTH_IMAGE_NEAR_LIMIT から DEPTH_IMAGE_FAR_LIMIT までを255段階で表示
+void make_depthrangeImg(cv::Mat* depthrangeImg, std::vector<std::vector<int32_t> > depthdata) {
+    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+        for (int x = 0; x < DEPTH_WIDTH; x++) {
 
-    for (int y = 0; y < depth_image_height; y++) {
-        for (int x = 0; x < depth_image_width; x++) {
-            int address = y * depth_image_width + x;
-            file_depth_surface << depth_image_buffer[address] << ",";
+            if (depthdata[x][y] >= DEPTH_IMAGE_NEAR_LIMIT && depthdata[x][y] < DEPTH_IMAGE_FAR_LIMIT) {
+                depthrangeImg->at<uint8_t>(y, x) = (depthdata[x][y] - DEPTH_IMAGE_NEAR_LIMIT) * (255/(DEPTH_IMAGE_FAR_LIMIT - DEPTH_IMAGE_NEAR_LIMIT));
+            }
+            else if (depthdata[x][y] == 0) {
+                depthrangeImg->at<uint8_t>(y, x) = 0;
+            }
+            else {
+                depthrangeImg->at<uint8_t>(y, x) = 0;
+            }
         }
-        file_depth_surface << std::endl;
     }
 }
 
 
-int search_measuretarget_left(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer, int32_t scan_line) {
+
+////  whileループ depth_image 1キャプチャ分の bufferのデータをcsvに書き込み
+//void get_depth_surface_to_csv(uint16_t* depth_image_buffer) {
+//    const char* filename = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
+//    //const char* filename = "C:\\Users\\i1811402\\cpp_program\\kinect_project3\\data\\depth_surface.csv";
+//    std::ofstream file_depth_surface(filename);
+//    if (!file_depth_surface) {
+//        throw std::runtime_error("depth_surface.csv が開けませんでした");
+//    }
+//
+//    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+//        for (int x = 0; x < DEPTH_WIDTH; x++) {
+//            int address = y * DEPTH_WIDTH + x;
+//            file_depth_surface << depth_image_buffer[address] << ",";
+//        }
+//        file_depth_surface << std::endl;
+//    }
+//}
+
+
+int search_measuretarget_left(std::vector<std::vector<int32_t> > depthdata, int32_t scan_line) {
     int temp_val = -1;
-    for (int x = 0; x < depth_image_width - 1; x++) {
-        int address = scan_line * depth_image_width + x;
+    int y = scan_line;
+    for (int x = 0; x < DEPTH_WIDTH; x++) {
         // 計測対象の0mmになる部分の内側を検出する
-        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && depth_image_buffer[address] != 0) {
+        if (y >= DEPTH_HEIGHT || x >= DEPTH_WIDTH) {
+            break;
+        }
+        else if (depthdata[x][y] < DEPTH_SEARCH_BORDER && depthdata[x][y] != 0) {
             temp_val = x;
             break;
         }
@@ -143,11 +195,14 @@ int search_measuretarget_left(int32_t depth_image_height, int32_t depth_image_wi
     return temp_val;
 }
 
-int search_measuretarget_right(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer, int32_t depth_data_point_left, int32_t scan_line) {
+int search_measuretarget_right(std::vector<std::vector<int32_t> > depthdata, int32_t depth_data_point_left, int32_t scan_line) {
     int temp_val = -1;
-    for (int x = depth_data_point_left + 5; x < depth_image_width; x++) {
-        int address = scan_line * depth_image_width + x;
-        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depth_image_buffer[address] - depth_image_buffer[address + 1]), 2.0)) > 5.0) {
+    int y = scan_line;
+    for (int x = depth_data_point_left + 5; x < DEPTH_WIDTH; x++) {
+        if (y >= DEPTH_HEIGHT || x >= DEPTH_WIDTH) {
+            break;
+        }
+        else if (depthdata[x][y] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depthdata[x][y] - depthdata[x+1][y]), 2.0)) > 5.0) {
             temp_val = x;
             break;
         }
@@ -155,10 +210,13 @@ int search_measuretarget_right(int32_t depth_image_height, int32_t depth_image_w
     return temp_val;
 }
 
-int search_measuretarget_upper(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer, int32_t depth_data_point_left, int32_t depth_data_point_right) {
+
+
+int search_measuretarget_upper(std::vector<std::vector<int32_t> > depthdata, int32_t depth_data_point_left, int32_t depth_data_point_right) {
     int temp_val = -1;
-    for (int y = 0; y < depth_image_width - 1; y++) {
-        int address = y * depth_image_width + (depth_data_point_right + depth_data_point_left) / 2;
+    for (int y = 0; y < DEPTH_WIDTH; y++) {
+        int address = y * DEPTH_WIDTH + (depth_data_point_right + depth_data_point_left) / 2;
+        int y =
         if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && depth_image_buffer[address] != 0) {
             temp_val = y;
             break;
@@ -167,11 +225,11 @@ int search_measuretarget_upper(int32_t depth_image_height, int32_t depth_image_w
     return temp_val;
 }
 
-int search_measuretarget_lower(int32_t depth_image_height, int32_t depth_image_width, uint16_t* depth_image_buffer, int32_t depth_data_point_left, int32_t depth_data_point_right, int32_t depth_data_point_upper) {
+int search_measuretarget_lower(uint16_t* depth_image_buffer, int32_t depth_data_point_left, int32_t depth_data_point_right, int32_t depth_data_point_upper) {
     int temp_val = -1;
-    for (int y = depth_data_point_upper + 5; y < depth_image_height; y++) {
-        int address = y * depth_image_width + (depth_data_point_right + depth_data_point_left) / 2;
-        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depth_image_buffer[address] - depth_image_buffer[address + depth_image_width]), 2.0)) > 3.0) {
+    for (int y = depth_data_point_upper + 5; y < DEPTH_HEIGHT; y++) {
+        int address = y * DEPTH_WIDTH + (depth_data_point_right + depth_data_point_left) / 2;
+        if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depth_image_buffer[address] - depth_image_buffer[address + DEPTH_WIDTH]), 2.0)) > 3.0) {
             temp_val = y;
             break;
         }
@@ -181,7 +239,7 @@ int search_measuretarget_lower(int32_t depth_image_height, int32_t depth_image_w
 }
 
 
-cv::Point3d depth2world(int32_t depth_image_height, int32_t depth_image_width, cv::Point3d measure_target_coord, cv::Point2i depth_coord_center){
+cv::Point3d depth2world(cv::Point3d measure_target_coord, cv::Point2i depth_coord_center){
     double z_distance;      // 距離
     double x_max_distance;       // 距離がdistanceの時の最大視野(mm)
     double x_distance_pixcel;
@@ -192,13 +250,13 @@ cv::Point3d depth2world(int32_t depth_image_height, int32_t depth_image_width, c
 
     // x方向
     x_max_distance = sin(NFOV_FOI_HOR) / cos(NFOV_FOI_HOR) * z_distance;
-    x_distance_pixcel = depth_coord_center.x - (depth_image_width / 2);
-    measure_target_coord.x = x_distance_pixcel * x_max_distance / (depth_image_width / 2);
+    x_distance_pixcel = depth_coord_center.x - (DEPTH_WIDTH / 2);
+    measure_target_coord.x = x_distance_pixcel * x_max_distance / (DEPTH_WIDTH / 2);
 
     // y方向
     y_max_distance = sin(NFOV_FOI_VERT) / cos(NFOV_FOI_VERT) * z_distance;
-    y_distance_pixcel = depth_coord_center.y - (depth_image_height / 2);
-    measure_target_coord.y = y_distance_pixcel * -1.0 * y_max_distance / (depth_image_height / 2); // スクリーン座標とワールド座標を逆にする
+    y_distance_pixcel = depth_coord_center.y - (DEPTH_HEIGHT / 2);
+    measure_target_coord.y = y_distance_pixcel * -1.0 * y_max_distance / (DEPTH_HEIGHT / 2); // スクリーン座標とワールド座標を逆にする
     return measure_target_coord;
 
 }
@@ -211,8 +269,6 @@ int main() {
     cv::Mat depthImg;                   // デプスセンサのイメージハンドルのデプスデータをグレースケールに変換して表示
     cv::Mat depthrangeImg;
     cv::Mat depthcoloredImg;            // depthImgをカラー画像に変換して境界などを描画して表示
-
-    cv::Mat depthdata;                  // 配列
 
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
@@ -229,6 +285,8 @@ int main() {
     k4a_image_t depth_image_handle;     // キャプチャのデプスセンサのハンドル
 
     uint16_t* depth_image_buffer = 0;        // デプスイメージのデータのポインタ
+
+    std::vector<std::vector< int32_t > > depthdata(DEPTH_WIDTH, std::vector<int32_t>(DEPTH_HEIGHT));
 
 
         // 計測対象の上下左右の端の深度を格納
@@ -254,7 +312,8 @@ int main() {
     int32_t key;
     int32_t flag_measure_target_coord = -1;      // 3次元座標[mm]をcsvに記録を行うフラグ
 
-    const char* filename_mtc = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\a.csv";
+    //const char* filename_mtc = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\a.csv";
+    const char* filename_mtc = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\a.csv";
     std::ofstream fp_measure_target_coord(filename_mtc);
     if (!fp_measure_target_coord) {
         throw std::runtime_error("a.csv が開けませんでした");
@@ -268,13 +327,13 @@ int main() {
         // 例外が発生した場合tryブロックの下にあるcatchブロックが実行される
     try
     {
-            // 無限ループ
+        // 無限ループ
         while (true) {
-            
-                // インスタンスの生成 生成時にコンストラクタが呼び出される
-                // コンストラクタでデバイスのオープン, カメラ構成設定, カメラのスタートを行う
 
-                // キャプチャが成功しているかどうかを調べる
+            // インスタンスの生成 生成時にコンストラクタが呼び出される
+            // コンストラクタでデバイスのオープン, カメラ構成設定, カメラのスタートを行う
+
+            // キャプチャが成功しているかどうかを調べる
             switch (k4a_device_get_capture(kinectdevice.device, &capture, 1000)) {
             case K4A_WAIT_RESULT_SUCCEEDED:
                 break;      // メインループ抜ける
@@ -285,20 +344,20 @@ int main() {
                 throw std::runtime_error("キャプチャに失敗しました");
             }
 
-                // キャプチャハンドルからカラーイメージのハンドルを取得する
+            // キャプチャハンドルからカラーイメージのハンドルを取得する
             color_image_handle = k4a_capture_get_color_image(capture);
-                // キャプチャハンドルからデプスイメージのハンドルを取得する
+            // キャプチャハンドルからデプスイメージのハンドルを取得する
             depth_image_handle = k4a_capture_get_depth_image(capture);
 
 
             if (color_image_handle) {
                 // カラーイメージのハンドルから画像のデータ，高さ，幅を取得する
                 get_color_image_data(&color_image_handle, &color_image_buffer);
-                
+
                 // カラーセンサのデータをRGBA画像に変換する
                 rgbaImg = cv::Mat(COLOR_HEIGHT, COLOR_WIDTH, CV_8UC4);      //4ch RGBA画像
                 rgbaImg.data = color_image_buffer;
-                cv::imshow("rgbaImg",rgbaImg);
+                cv::imshow("rgbaImg", rgbaImg);
             }
 
 
@@ -307,57 +366,59 @@ int main() {
                 get_depth_image_data(&depth_image_handle, &depth_image_buffer);
 
                 // uint8_t* depth_image_bufferの深度データをcv::Mat depthdata(CV_32S : 符号付32ビット整数)の配列に格納する
-                void set_distance(depthdata, depth_image_buffer);
+                set_distance(depthdata, depth_image_buffer);
 
                 // デプスセンサのデータをグレースケール画像に変換する
                 depthImg = cv::Mat(DEPTH_HEIGHT, DEPTH_WIDTH, CV_8UC1);
-                make_depthImg(&depthImg, depth_image_buffer);
+                // make_depthImg(&depthImg, depth_image_buffer);
+                
+                make_depthImg_2darray(&depthImg, depthdata);
 
                 depthrangeImg = cv::Mat(DEPTH_HEIGHT, DEPTH_WIDTH, CV_8UC1);
-                make_depthrangeImg(&depthrangeImg, depth_image_buffer);
+                make_depthrangeImg(&depthrangeImg, depthdata);
 
-                    // デプス画像(グレースケール)からカラー画像を作成
+                // デプス画像(グレースケール)からカラー画像を作成
                 cv::cvtColor(depthImg, depthcoloredImg, cv::COLOR_GRAY2BGR);
 
                 // 緑線を表示
-                for (int x = 0; x < depth_image_width; x++) {
+                for (int x = 0; x < DEPTH_WIDTH; x++) {
                     depthcoloredImg.at<cv::Vec3b>(288, x)[1] = 255;
                 }
-                for (int y = 0; y < depth_image_height; y++) {
+                for (int y = 0; y < DEPTH_HEIGHT; y++) {
                     depthcoloredImg.at<cv::Vec3b>(y, 320)[1] = 255;
-                    
+
                 }
 
                 //// デプス画像の中央, 上下左右の深度を格納
-                //depthimage_center_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + depth_image_width / 2];
-                //depthimage_left_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + 20];
-                //depthimage_right_point = depth_image_buffer[depth_image_height / 2 * depth_image_width + 620];
-                //depthimage_upper_point = depth_image_buffer[20 * depth_image_width + depth_image_width / 2];
-                //depthimage_lower_point = depth_image_buffer[(depth_image_height - 20) * depth_image_width + depth_image_width / 2];
+                //depthimage_center_point = depth_image_buffer[DEPTH_HEIGHT / 2 * DEPTH_WIDTH + DEPTH_WIDTH / 2];
+                //depthimage_left_point = depth_image_buffer[DEPTH_HEIGHT / 2 * DEPTH_WIDTH + 20];
+                //depthimage_right_point = depth_image_buffer[DEPTH_HEIGHT / 2 * DEPTH_WIDTH + 620];
+                //depthimage_upper_point = depth_image_buffer[20 * DEPTH_WIDTH + DEPTH_WIDTH / 2];
+                //depthimage_lower_point = depth_image_buffer[(DEPTH_HEIGHT - 20) * DEPTH_WIDTH + DEPTH_WIDTH / 2];
                 //// デプス画像の中央, 上下左右の深度を depthcoloredImg に表示
-                //cv::putText(depthcoloredImg, std::to_string(depthimage_center_point), cv::Point(depth_image_width / 2, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                //cv::putText(depthcoloredImg, std::to_string(depthimage_left_point), cv::Point(20, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                //cv::putText(depthcoloredImg, std::to_string(depthimage_right_point), cv::Point(580, depth_image_height / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                //cv::putText(depthcoloredImg, std::to_string(depthimage_upper_point), cv::Point(depth_image_width / 2, 20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                //cv::putText(depthcoloredImg, std::to_string(depthimage_lower_point), cv::Point(depth_image_width / 2, depth_image_height-20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_center_point), cv::Point(DEPTH_WIDTH / 2, DEPTH_HEIGHT / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_left_point), cv::Point(20, DEPTH_HEIGHT / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_right_point), cv::Point(580, DEPTH_HEIGHT / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_upper_point), cv::Point(DEPTH_WIDTH / 2, 20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_lower_point), cv::Point(DEPTH_WIDTH / 2, DEPTH_HEIGHT-20), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
 
                 //// 縦青線を表示
-                //for (int y = 0; y < depth_image_height; y++) {
+                //for (int y = 0; y < DEPTH_HEIGHT; y++) {
                 //    depthcoloredImg.at<cv::Vec3b>(y, 20) = cv::Vec3b(255, 0, 0);
                 //    depthcoloredImg.at<cv::Vec3b>(y, 620) = cv::Vec3b(255, 0, 0);
                 //}
 
-                //for (int x = 0; x < depth_image_width; x++) {
+                //for (int x = 0; x < DEPTH_WIDTH; x++) {
                 //    depthcoloredImg.at<cv::Vec3b>(20, x) = cv::Vec3b(255, 0, 0);
-                //    depthcoloredImg.at<cv::Vec3b>(depth_image_height - 20, x) = cv::Vec3b(255, 0, 0);
+                //    depthcoloredImg.at<cv::Vec3b>(DEPTH_HEIGHT - 20, x) = cv::Vec3b(255, 0, 0);
                 //}
 
                 // 横 走査ライン探す
                 int scan_line_upper = -1;
                 int scan_line_lower = -1;
-                for (int y = 0; y < depth_image_height; y++) {
-                    for (int x = 0; x < depth_image_width; x++) {
-                        int address = y * depth_image_width + x;
+                for (int y = 0; y < DEPTH_HEIGHT; y++) {
+                    for (int x = 0; x < DEPTH_WIDTH; x++) {
+                        int address = y * DEPTH_WIDTH + x;
                         if (depth_image_buffer[address] < DEPTH_SEARCH_BORDER && depth_image_buffer[address] != 0) {
                             if (scan_line_upper == -1) {
                                 scan_line_upper = y;
@@ -370,7 +431,7 @@ int main() {
                 //std::cout << scan_line_upper << scan_line_lower << std::endl;
                 scan_line_lower = scan_line_upper + 20;
                 int scan_line = (scan_line_upper + scan_line_lower) / 2;
-                for (int x = 0; x < depth_image_width; x++) {
+                for (int x = 0; x < DEPTH_WIDTH; x++) {
                     if (scan_line_upper != -1) {
                         depthcoloredImg.at<cv::Vec3b>(scan_line_upper, x) = cv::Vec3b(255, 255, 0);
                         depthcoloredImg.at<cv::Vec3b>(scan_line_lower, x) = cv::Vec3b(255, 255, 0);
@@ -379,36 +440,36 @@ int main() {
 
                 // 左側を探索
                 if (scan_line > 0) {
-                    depth_data_point_left = search_measuretarget_left(depth_image_height, depth_image_width, depth_image_buffer, scan_line);
+                    depth_data_point_left = search_measuretarget_left(depth_image_buffer, scan_line);
                     if (depth_data_point_left != -1) {
                         // 左側 赤線を表示
-                        for (int y = 0; y < depth_image_height; y++) {
+                        for (int y = 0; y < DEPTH_HEIGHT; y++) {
                             depthcoloredImg.at<cv::Vec3b>(y, depth_data_point_left) = cv::Vec3b(0, 0, 255);
                         }
                         // 右側を探索
-                        depth_data_point_right = search_measuretarget_right(depth_image_height, depth_image_width, depth_image_buffer, depth_data_point_left, scan_line);
+                        depth_data_point_right = search_measuretarget_right(depth_image_buffer, depth_data_point_left, scan_line);
                         if (depth_data_point_right != -1) {
-                            for (int y = 0; y < depth_image_height; y++) {
+                            for (int y = 0; y < DEPTH_HEIGHT; y++) {
                                 depthcoloredImg.at<cv::Vec3b>(y, depth_data_point_right) = cv::Vec3b(0, 0, 255);
                             }
                             // 計測対象の左右の中間線を表示
-                            for (int y = 0; y < depth_image_height; y++) {
+                            for (int y = 0; y < DEPTH_HEIGHT; y++) {
                                 depthcoloredImg.at<cv::Vec3b>(y, (depth_data_point_right + depth_data_point_left) / 2) = cv::Vec3b(255, 0, 0);
                             }
                             // 上側を探索
-                            depth_data_point_upper = search_measuretarget_upper(depth_image_height, depth_image_width, depth_image_buffer, depth_data_point_left, depth_data_point_right);
+                            depth_data_point_upper = search_measuretarget_upper(depth_image_buffer, depth_data_point_left, depth_data_point_right);
                             if (depth_data_point_upper != -1) {
-                                for (int x = 0; x < depth_image_width; x++) {
+                                for (int x = 0; x < DEPTH_WIDTH; x++) {
                                     depthcoloredImg.at<cv::Vec3b>(depth_data_point_upper, x) = cv::Vec3b(0, 0, 255);
                                 }
                                 // 下側を探索
-                                depth_data_point_lower = search_measuretarget_lower(depth_image_height, depth_image_width, depth_image_buffer, depth_data_point_left, depth_data_point_right, depth_data_point_upper);
+                                depth_data_point_lower = search_measuretarget_lower(depth_image_buffer, depth_data_point_left, depth_data_point_right, depth_data_point_upper);
                                 if (depth_data_point_lower != -1) {
-                                    for (int x = 0; x < depth_image_width; x++) {
+                                    for (int x = 0; x < DEPTH_WIDTH; x++) {
                                         depthcoloredImg.at<cv::Vec3b>(depth_data_point_lower, x) = cv::Vec3b(0, 0, 255);
                                     }
                                     // 計測対象の上下の中間線を表示
-                                    for (int x = 0; x < depth_image_width; x++) {
+                                    for (int x = 0; x < DEPTH_WIDTH; x++) {
                                         depthcoloredImg.at<cv::Vec3b>((depth_data_point_upper + depth_data_point_lower) / 2, x) = cv::Vec3b(255, 0, 0);
                                     }
                                 }
@@ -439,14 +500,14 @@ int main() {
 
 
                 // 計測対象の中心座標の深度を measure_target_coordに格納
-                //measure_target_coord.z = depth_image_buffer[depth_coord_center.y * depth_image_width + depth_coord_center.x];
+                //measure_target_coord.z = depth_image_buffer[depth_coord_center.y * DEPTH_WIDTH + depth_coord_center.x];
 
 
                 // 移動平均
                 depth_data_center_5x5 = 0.0;
                 for (int x = depth_coord_center.x - 2; x <= depth_coord_center.x + 2; x++) {
                     for (int y = depth_coord_center.y - 2; y <= depth_coord_center.y + 2; y++) {
-                        depth_data_center_5x5 += depth_image_buffer[y * depth_image_width + x] / 25.0;
+                        depth_data_center_5x5 += depth_image_buffer[y * DEPTH_WIDTH + x] / 25.0;
                     }
                 }
                 measure_target_coord.z = depth_data_center_5x5;
@@ -455,7 +516,7 @@ int main() {
                 // カメラ中心から計測対象の中心の角度を求める(x座標)
                 //angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * NFOV_FOI_HOR / 2.0;
                 //measure_target_coord.x = ((depth_coord_center.x - X_CENTER_COORD) * measure_target_coord.z * tan(NFOV_FOI_HOR/2.0/180.0*M_PI)) / X_CENTER_COORD;
-                measure_target_coord = depth2world(depth_image_height, depth_image_width, measure_target_coord, depth_coord_center);
+                measure_target_coord = depth2world(measure_target_coord, depth_coord_center);
                 std::cout << measure_target_coord << std::endl;
 
 
@@ -464,49 +525,49 @@ int main() {
                 cv::imshow("depth image", depthImg);
 
                 if (flag_measure_target_coord != -1 && flag_measure_target_coord < 100) {
-                    fp_measure_target_coord << measure_target_coord.x <<"," << measure_target_coord.y <<"," <<measure_target_coord.z << "," << depth_coord_center.x << "," << depth_coord_center.y << std::endl;
+                    fp_measure_target_coord << measure_target_coord.x << "," << measure_target_coord.y << "," << measure_target_coord.z << "," << depth_coord_center.x << "," << depth_coord_center.y << std::endl;
                     flag_measure_target_coord++;
                 }
                 if (flag_measure_target_coord == 100) {
                     std::cout << "3次元データ記録終了" << std::endl;
                     flag_measure_target_coord = -1;
                 }
-            k4a_image_release(color_image_handle);
-            k4a_image_release(depth_image_handle);
-            k4a_capture_release(capture);
+                k4a_image_release(color_image_handle);
+                k4a_image_release(depth_image_handle);
+                k4a_capture_release(capture);
 
             }
-        }
-        cv::waitKey(1);
-        cv::Mat image = cv::Mat::zeros(500, 500, CV_8UC3);
+            cv::waitKey(1);
+            cv::Mat image = cv::Mat::zeros(500, 500, CV_8UC3);
 
-        int cols = image.cols;
-        int rows = image.rows;
-        for (int j = 0; j < rows; j++) {
-            for (int i = 0; i < cols; i++) {
-                image.at<cv::Vec3b>(j, i)[0] = 255; //青
-                image.at<cv::Vec3b>(j, i)[1] = 255; //緑
-                image.at<cv::Vec3b>(j, i)[2] = 255; //赤
+            int cols = image.cols;
+            int rows = image.rows;
+            for (int j = 0; j < rows; j++) {
+                for (int i = 0; i < cols; i++) {
+                    image.at<cv::Vec3b>(j, i)[0] = 255; //青
+                    image.at<cv::Vec3b>(j, i)[1] = 255; //緑
+                    image.at<cv::Vec3b>(j, i)[2] = 255; //赤
+                }
             }
-        }
 
-        cv::imshow("image", image);
+            cv::imshow("image", image);
 
 
-        key = cv::waitKey(1);
-        if (key == 'q') {
-            break;      // メインループ抜ける
-        }
+            key = cv::waitKey(1);
+            if (key == 'q') {
+                break;      // メインループ抜ける
+            }
 
-        if (key == 's') {
-            std::cout << "get_depth_surface_to_csv 開始" << std::endl;
-            get_depth_surface_to_csv(depth_image_height, depth_image_width, depth_image_buffer);
-            std::cout << "get_depth_surface_to_csv 終了" << std::endl;
-        }
+            //if (key == 's') {
+            //    std::cout << "get_depth_surface_to_csv 開始" << std::endl;
+            //    get_depth_surface_to_csv(depth_image_buffer);
+            //    std::cout << "get_depth_surface_to_csv 終了" << std::endl;
+            //}
 
-        if (key == 'p' && flag_measure_target_coord == -1) {
-            std::cout << "3次元データ記録開始" << std::endl;
-            flag_measure_target_coord = 0;
+            if (key == 'p' && flag_measure_target_coord == -1) {
+                std::cout << "3次元データ記録開始" << std::endl;
+                flag_measure_target_coord = 0;
+            }
         }
     }
     catch (const std::exception &ex)

@@ -10,7 +10,7 @@
 #include <k4a/k4a.h>
 #include <opencv2/opencv.hpp>
 
-#include "kinect.h"         // 自作ヘッダ
+#include "kinectdevice.h"         // 自作ヘッダ
 
 
 // コンストラクタ
