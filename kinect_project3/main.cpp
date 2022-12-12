@@ -39,9 +39,9 @@
 #define COLOR_WIDTH         1920            // カラーセンサの横幅
 #define COLOR_HEIGHT        1080            // カラーセンサの縦幅
 
-#define DEPTH_SEARCH_BORDER  620            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_FAR_LIMIT   650
-#define DEPTH_IMAGE_NEAR_LIMIT  550         // グレースケール画像にする最小距離
+#define DEPTH_SEARCH_BORDER  710            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_IMAGE_FAR_LIMIT   750
+#define DEPTH_IMAGE_NEAR_LIMIT  650         // グレースケール画像にする最小距離
          // グレースケール画像にする最大距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
@@ -198,16 +198,16 @@ int search_measuretarget_left(std::vector<std::vector<int32_t> > depthdata, int3
 int search_measuretarget_right(std::vector<std::vector<int32_t> > depthdata, int32_t scan_line_row, int32_t depth_data_point_left) {
     int temp_val = -1;
     int y = scan_line_row;
-    for (int x = depth_data_point_left + 5; x < DEPTH_WIDTH; x++) {
+    for (int x = depth_data_point_left + 5; x < DEPTH_WIDTH - 1; x++) {
         if (y >= DEPTH_HEIGHT || x >= DEPTH_WIDTH) {
             break;
         }
-        else if (depthdata[x][y] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depthdata[x][y] - depthdata[x+1][y]), 2.0)) > 5.0) {
+        else if (depthdata[x][y] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depthdata[x][y] - depthdata[x+1][y]), 2.0)) > 3.0) {
             temp_val = x;
             break;
         }
     }
-    return temp_val;
+    return temp_val + 1;
 }
 
 
@@ -233,7 +233,7 @@ int search_measuretarget_lower(std::vector<std::vector<int32_t> > depthdata, int
             break;
         }
     }
-    return temp_val;
+    return temp_val + 1;
     //return depth_data_point_upper + (depth_data_point_left - depth_data_point_right);
 }
 
@@ -249,13 +249,13 @@ cv::Point3d depth2world(cv::Point3d measure_target_coord, cv::Point2d depth_coor
 
     // x方向
     x_max_distance = sin(NFOV_FOI_HOR) / cos(NFOV_FOI_HOR) * z_distance;
-    x_distance_pixcel = depth_coord_center.x - (DEPTH_WIDTH / 2);
-    measure_target_coord.x = x_distance_pixcel * x_max_distance / (DEPTH_WIDTH / 2);
+    x_distance_pixcel = depth_coord_center.x - (double)X_CENTER_COORD;
+    measure_target_coord.x = x_distance_pixcel * x_max_distance / (double)(X_CENTER_COORD);
 
     // y方向
     y_max_distance = sin(NFOV_FOI_VERT) / cos(NFOV_FOI_VERT) * z_distance;
-    y_distance_pixcel = depth_coord_center.y - (DEPTH_HEIGHT / 2);
-    measure_target_coord.y = y_distance_pixcel * -1.0 * y_max_distance / (DEPTH_HEIGHT / 2); // スクリーン座標とワールド座標を逆にする
+    y_distance_pixcel = depth_coord_center.y - (double)Y_CENTER_COORD;
+    measure_target_coord.y = y_distance_pixcel * -1.0 * y_max_distance / (double)Y_CENTER_COORD; // スクリーン座標とワールド座標を逆にする
     return measure_target_coord;
 
 }
@@ -311,8 +311,8 @@ int main() {
     int32_t key;
     int32_t flag_measure_target_coord = -1;      // 3次元座標[mm]をcsvに記録を行うフラグ
 
-    //const char* filename_mtc = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\a.csv";
-    const char* filename_mtc = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\a.csv";
+    const char* filename_mtc = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\a.csv";
+    //const char* filename_mtc = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\a.csv";
     std::ofstream fp_measure_target_coord(filename_mtc);
     if (!fp_measure_target_coord) {
         throw std::runtime_error("a.csv が開けませんでした");
@@ -416,7 +416,7 @@ int main() {
                 // 横 走査ライン探す
                 int scan_line_upper = -1;
                 int scan_line_lower = -1;
-                for (int y = 0; y < DEPTH_HEIGHT; y++) {
+                for (int y = 0; y < DEPTH_HEIGHT; y+=10) {
                     for (int x = 0; x < DEPTH_WIDTH; x++) {
                         if (depthdata[x][y] < DEPTH_SEARCH_BORDER && depthdata[x][y] != 0) {
                             if (scan_line_upper == -1) {
@@ -427,9 +427,29 @@ int main() {
                         }
                     }
                 }
+
+
+                // Kinectを立てて計測するときはこっち↓
+
+                //// 横 走査ライン探す
+                //int scan_line_upper = -1;
+                //int scan_line_lower = -1;
+                //for (int x = 0; x < DEPTH_WIDTH; x += 10) {
+                //    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+                //        if (depthdata[x][y] < DEPTH_SEARCH_BORDER && depthdata[x][y] != 0) {
+                //            if (scan_line_upper == -1) {
+                //                scan_line_upper = y;
+                //            }
+                //            //scan_line_lower = y;
+                //            break;
+                //        }
+                //    }
+                //}
+
+
                 //std::cout << scan_line_upper << scan_line_lower << std::endl;
                 scan_line_lower = scan_line_upper + 20;
-                int scan_line_row = (scan_line_upper + scan_line_lower) / 2;
+                int scan_line_row = (int)(scan_line_upper + scan_line_lower) / 2;
                 for (int x = 0; x < DEPTH_WIDTH; x++) {
                     if (scan_line_upper != -1) {
                         depthcoloredImg.at<cv::Vec3b>(scan_line_upper, x) = cv::Vec3b(255, 255, 0);
@@ -455,12 +475,12 @@ int main() {
                             for (int y = 0; y < DEPTH_HEIGHT; y++) {
                                 depthcoloredImg.at<cv::Vec3b>(y, (depth_data_point_right + depth_data_point_left) / 2) = cv::Vec3b(255, 0, 0);
                             }
-                            int scan_line_col = (depth_data_point_left + depth_data_point_right);
+                            int scan_line_col = (int)(depth_data_point_left + depth_data_point_right) / 2;
                             // 上側を探索
                             depth_data_point_upper = search_measuretarget_upper(depthdata, scan_line_col);
                             if (depth_data_point_upper != -1) {
                                 for (int x = 0; x < DEPTH_WIDTH; x++) {
-                                    depthcoloredImg.at<cv::Vec3b>(depth_data_point_upper, x) = cv::Vec3b(0, 0, 255);
+                                   // depthcoloredImg.at<cv::Vec3b>(depth_data_point_upper, x) = cv::Vec3b(0, 0, 255);
                                 }
                                 // 下側を探索
                                 depth_data_point_lower = search_measuretarget_lower(depthdata, scan_line_col, depth_data_point_upper);
@@ -500,7 +520,7 @@ int main() {
                                     //angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * NFOV_FOI_HOR / 2.0;
                                     //measure_target_coord.x = ((depth_coord_center.x - X_CENTER_COORD) * measure_target_coord.z * tan(NFOV_FOI_HOR/2.0/180.0*M_PI)) / X_CENTER_COORD;
                                     measure_target_coord = depth2world(measure_target_coord, depth_coord_center);
-                                    std::cout << measure_target_coord << std::endl;
+                                    std::cout << std::setw(10) <<std::setprecision(5) << measure_target_coord.x << "\t" << measure_target_coord.y << "\t" << measure_target_coord.z << std::endl;
 
 
 
