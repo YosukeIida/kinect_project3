@@ -39,9 +39,9 @@
 #define COLOR_WIDTH         1920            // カラーセンサの横幅
 #define COLOR_HEIGHT        1080            // カラーセンサの縦幅
 
-#define DEPTH_SEARCH_BORDER  710            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_FAR_LIMIT   750
-#define DEPTH_IMAGE_NEAR_LIMIT  650         // グレースケール画像にする最小距離
+#define DEPTH_SEARCH_BORDER  620            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_IMAGE_FAR_LIMIT   650
+#define DEPTH_IMAGE_NEAR_LIMIT  550         // グレースケール画像にする最小距離
          // グレースケール画像にする最大距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
@@ -250,7 +250,7 @@ cv::Point3d depth2world(cv::Point3d measure_target_coord, cv::Point2d depth_coor
     // x方向
     x_max_distance = sin(NFOV_FOI_HOR) / cos(NFOV_FOI_HOR) * z_distance;
     x_distance_pixcel = depth_coord_center.x - (double)X_CENTER_COORD;
-    measure_target_coord.x = x_distance_pixcel * x_max_distance / (double)(X_CENTER_COORD);
+    measure_target_coord.x = x_distance_pixcel * x_max_distance / (double)X_CENTER_COORD;
 
     // y方向
     y_max_distance = sin(NFOV_FOI_VERT) / cos(NFOV_FOI_VERT) * z_distance;
@@ -308,7 +308,7 @@ int main() {
 
     double depth_data_center_5x5;           // 計測対象中心深度 25マス移動平均
 
-    int32_t key;
+    int key;
     int32_t flag_measure_target_coord = -1;      // 3次元座標[mm]をcsvに記録を行うフラグ
 
     const char* filename_mtc = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\a.csv";
@@ -413,29 +413,11 @@ int main() {
                 //    depthcoloredImg.at<cv::Vec3b>(DEPTH_HEIGHT - 20, x) = cv::Vec3b(255, 0, 0);
                 //}
 
-                // 横 走査ライン探す
-                int scan_line_upper = -1;
-                int scan_line_lower = -1;
-                for (int y = 0; y < DEPTH_HEIGHT; y+=10) {
-                    for (int x = 0; x < DEPTH_WIDTH; x++) {
-                        if (depthdata[x][y] < DEPTH_SEARCH_BORDER && depthdata[x][y] != 0) {
-                            if (scan_line_upper == -1) {
-                                scan_line_upper = y;
-                            }
-                            //scan_line_lower = y;
-                            break;
-                        }
-                    }
-                }
-
-
-                // Kinectを立てて計測するときはこっち↓
-
                 //// 横 走査ライン探す
                 //int scan_line_upper = -1;
                 //int scan_line_lower = -1;
-                //for (int x = 0; x < DEPTH_WIDTH; x += 10) {
-                //    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+                //for (int y = 0; y < DEPTH_HEIGHT; y+=10) {
+                //    for (int x = 0; x < DEPTH_WIDTH; x++) {
                 //        if (depthdata[x][y] < DEPTH_SEARCH_BORDER && depthdata[x][y] != 0) {
                 //            if (scan_line_upper == -1) {
                 //                scan_line_upper = y;
@@ -445,6 +427,24 @@ int main() {
                 //        }
                 //    }
                 //}
+
+
+                // Kinectを立てて計測するときはこっち↓
+
+                // 横 走査ライン探す
+                int scan_line_upper = -1;
+                int scan_line_lower = -1;
+                for (int x = 0; x < DEPTH_WIDTH; x += 10) {
+                    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+                        if (depthdata[x][y] < DEPTH_SEARCH_BORDER && depthdata[x][y] != 0) {
+                            if (scan_line_upper == -1) {
+                                scan_line_upper = y;
+                            }
+                            //scan_line_lower = y;
+                            break;
+                        }
+                    }
+                }
 
 
                 //std::cout << scan_line_upper << scan_line_lower << std::endl;
@@ -520,7 +520,7 @@ int main() {
                                     //angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * NFOV_FOI_HOR / 2.0;
                                     //measure_target_coord.x = ((depth_coord_center.x - X_CENTER_COORD) * measure_target_coord.z * tan(NFOV_FOI_HOR/2.0/180.0*M_PI)) / X_CENTER_COORD;
                                     measure_target_coord = depth2world(measure_target_coord, depth_coord_center);
-                                    std::cout << std::setw(10) <<std::setprecision(5) << measure_target_coord.x << "\t" << measure_target_coord.y << "\t" << measure_target_coord.z << std::endl;
+                                    std::cout << std::setprecision(5) << std::setw(10) << measure_target_coord.x << std::setw(10) << measure_target_coord.y << std::setw(10) << measure_target_coord.z << std::setw(10) << depth_coord_center.x << std::setw(10) << depth_coord_center.y << std::setw(10) << std::endl;
 
 
 
@@ -543,27 +543,17 @@ int main() {
                 }
 
 
-
-                
-
                 cv::imshow("depthcoloredImg", depthcoloredImg);
                 cv::imshow("depthrangeImg", depthrangeImg);
                 cv::imshow("depth image", depthImg);
 
-                if (flag_measure_target_coord != -1 && flag_measure_target_coord < 100) {
-                    fp_measure_target_coord << measure_target_coord.x << "," << measure_target_coord.y << "," << measure_target_coord.z << "," << depth_coord_center.x << "," << depth_coord_center.y << std::endl;
-                    flag_measure_target_coord++;
-                }
-                if (flag_measure_target_coord == 100) {
-                    std::cout << "3次元データ記録終了" << std::endl;
-                    flag_measure_target_coord = -1;
-                }
                 k4a_image_release(color_image_handle);
                 k4a_image_release(depth_image_handle);
                 k4a_capture_release(capture);
 
             }
-            cv::waitKey(1);
+            //cv::waitKey(1);
+            
             cv::Mat image = cv::Mat::zeros(500, 500, CV_8UC3);
 
             int cols = image.cols;
@@ -579,7 +569,7 @@ int main() {
             cv::imshow("image", image);
 
 
-            key = cv::waitKey(1);
+            key = cv::waitKey(10);
             if (key == 'q') {
                 break;      // メインループ抜ける
             }
@@ -591,8 +581,19 @@ int main() {
             //}
 
             if (key == 'p' && flag_measure_target_coord == -1) {
-                std::cout << "3次元データ記録開始" << std::endl;
+                std::cout << "\n\n3次元データ記録開始\n\n" << std::endl;
                 flag_measure_target_coord = 0;
+            }
+
+            if (flag_measure_target_coord != -1 && flag_measure_target_coord < 100) {
+                fp_measure_target_coord << std::setprecision(10) << measure_target_coord.x << "," << measure_target_coord.y << "," << measure_target_coord.z << "," << depth_coord_center.x << "," << depth_coord_center.y << std::endl;
+                flag_measure_target_coord++;
+            }
+            if (flag_measure_target_coord == 100) {
+                std::cout << "\n\n3次元データ記録終了\n\n" << std::endl;
+                flag_measure_target_coord = -1;
+                break;
+
             }
         }
     }
