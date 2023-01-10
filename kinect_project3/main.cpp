@@ -20,6 +20,15 @@
 //
 //------------------------------------------------------------------------------
 
+
+//  プログラム実行中のキー操作
+//  "q" プログラム終了
+//  "p" デプスカメラ記録開始  100フレーム計測後プログラム終了
+//  "c" カラーカメラ記録開始  100フレーム計測後プログラム終了
+//  
+
+
+
 #include <iostream>
 #include <string>       // to_string()で使用
 #include <fstream>      // ofstream()で使用
@@ -39,9 +48,9 @@
 #define COLOR_WIDTH         1920            // カラーセンサの横幅
 #define COLOR_HEIGHT        1080            // カラーセンサの縦幅
 
-#define DEPTH_SEARCH_BORDER  620            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_FAR_LIMIT   650
-#define DEPTH_IMAGE_NEAR_LIMIT  550         // グレースケール画像にする最小距離
+#define DEPTH_SEARCH_BORDER  720            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_IMAGE_FAR_LIMIT   750
+#define DEPTH_IMAGE_NEAR_LIMIT  650         // グレースケール画像にする最小距離
          // グレースケール画像にする最大距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
