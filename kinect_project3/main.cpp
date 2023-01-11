@@ -30,9 +30,10 @@
 
 
 #include <iostream>
+#include <vector>
 #include <string>       // to_string()で使用
 #include <fstream>      // ofstream()で使用
-#include <vector>
+#include <iomanip>      // 浮動小数点数の表示方法
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -103,24 +104,45 @@ int main() {
     cv::Mat depthcoloredImg;            // depthImgをカラー画像に変換して境界などを描画して表示
 
 
-    // カメラ行列 (カメラ内部行列)
-    cv::Mat camera_matrix(3, 3, CV_64FC1);
-    camera_matrix.at<double>(0, 0) = 909.98956298828125000000;      // fx
-    camera_matrix.at<double>(0, 1) = 0.0;                           // 0.0
-    camera_matrix.at<double>(0, 2) = 961.07861328125000000000;      // cx
-    camera_matrix.at<double>(1, 0) = 0.0;                           // 0.0
-    camera_matrix.at<double>(1, 1) = 909.63812255859375000000;      // fy
-    camera_matrix.at<double>(1, 2) = 553.43408203125000000000;      // cy
-    camera_matrix.at<double>(2, 0) = 0.0;                           // 0.0
-    camera_matrix.at<double>(2, 1) = 0.0;                           // 0.0
-    camera_matrix.at<double>(2, 2) = 1.0;                           // 1.0
+    // カラーカメラ行列 (カメラ内部行列)
+    cv::Mat color_camera_matrix(3, 3, CV_64FC1);
+    color_camera_matrix.at<double>(0, 0) = 909.98956298828125000000;      // fx
+    color_camera_matrix.at<double>(0, 1) = 0.0;                           // 0.0
+    color_camera_matrix.at<double>(0, 2) = 961.07861328125000000000;      // cx
+    color_camera_matrix.at<double>(1, 0) = 0.0;                           // 0.0
+    color_camera_matrix.at<double>(1, 1) = 909.63812255859375000000;      // fy
+    color_camera_matrix.at<double>(1, 2) = 553.43408203125000000000;      // cy
+    color_camera_matrix.at<double>(2, 0) = 0.0;                           // 0.0
+    color_camera_matrix.at<double>(2, 1) = 0.0;                           // 0.0
+    color_camera_matrix.at<double>(2, 2) = 1.0;                           // 1.0
     // カメラ行列 (歪み distortion)
-    cv::Mat dist_coeffs(1, 5, CV_64FC1);
-    dist_coeffs.at<double>(0, 0) = 0.46717128157615661621;          // k1
-    dist_coeffs.at<double>(0, 1) = -2.45866727828979492188;         // k2
-    dist_coeffs.at<double>(0, 2) = 0.00136364088393747807;          // p1
-    dist_coeffs.at<double>(0, 3) = -0.00006751885666744784;          // p2
-    dist_coeffs.at<double>(0, 4) = 1.37056386470794677734;         // k3
+    cv::Mat color_camera_dist_coeffs(1, 5, CV_64FC1);
+    color_camera_dist_coeffs.at<double>(0, 0) = 0.46717128157615661621;          // k1
+    color_camera_dist_coeffs.at<double>(0, 1) = -2.45866727828979492188;         // k2
+    color_camera_dist_coeffs.at<double>(0, 2) = 0.00136364088393747807;          // p1
+    color_camera_dist_coeffs.at<double>(0, 3) = -0.00006751885666744784;          // p2
+    color_camera_dist_coeffs.at<double>(0, 4) = 1.37056386470794677734;         // k3
+
+
+    // デプスカメラ行列 (カメラ内部行列)
+    cv::Mat depth_camera_matrix(3, 3, CV_64FC1);
+    depth_camera_matrix.at<double>(0, 0) = 503.22808837890625000000;      // fx
+    depth_camera_matrix.at<double>(0, 1) = 0.0;                           // 0.0
+    depth_camera_matrix.at<double>(0, 2) = 314.59005737304687500000;      // cx
+    depth_camera_matrix.at<double>(1, 0) = 0.0;                           // 0.0
+    depth_camera_matrix.at<double>(1, 1) = 503.35195922851562500000;      // fy
+    depth_camera_matrix.at<double>(1, 2) = 332.22369384765625000000;      // cy
+    depth_camera_matrix.at<double>(2, 0) = 0.0;                           // 0.0
+    depth_camera_matrix.at<double>(2, 1) = 0.0;                           // 0.0
+    depth_camera_matrix.at<double>(2, 2) = 1.0;                           // 1.0
+    // カメラ行列 (歪み distortion)
+    cv::Mat depth_camera_dist_coeffs(1, 5, CV_64FC1);
+    depth_camera_dist_coeffs.at<double>(0, 0) = 2.48467683792114257812;          // k1
+    depth_camera_dist_coeffs.at<double>(0, 1) = 1.70563745498657226562;         // k2
+    depth_camera_dist_coeffs.at<double>(0, 2) = -0.00007825181819498539;          // p1
+    depth_camera_dist_coeffs.at<double>(0, 3) = 0.00002669491004780866;          // p2
+    depth_camera_dist_coeffs.at<double>(0, 4) = 0.09044291824102401733;         // k3
+
 
 
     // Create Marker Dictionary, Type of marker : 4x4, 1000
@@ -135,6 +157,7 @@ int main() {
     std::vector<std::vector<cv::Point2f>> marker_corners, rejectedCandidates;
 
     int sum_ids = 0;
+    std::vector<cv::Vec3d> rvecs, tvecs;        // arucoマーカーのtvec, rvec
 
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
@@ -146,6 +169,10 @@ int main() {
     k4a_image_t color_image_handle;     // キャプチャのカラーセンサのハンドル
 
     uint8_t* color_image_buffer;        // カラーイメージのデータのポインタ
+
+
+
+
 
         // デプスイメージ
     k4a_image_t depth_image_handle;     // キャプチャのデプスセンサのハンドル
@@ -168,7 +195,7 @@ int main() {
     int32_t depthimage_upper_point;         // デプス画像の上端の深度
     int32_t depthimage_lower_point;         // デプス画像の下端の深度
 
-    double angle_x;                         // 中央から計測対象の中心までのx軸の角度
+    //double angle_x;                         // 中央から計測対象の中心までのx軸の角度
     cv::Point3d measure_target_coord;        // 計測対象の3次元座標 [mm]
 
     cv::Point2d depth_coord_center;         // 計測対象の中心座標 [pixcel]
@@ -177,6 +204,12 @@ int main() {
 
     int key;
     int32_t flag_depth_measure_target_coord = -1;      // 3次元座標[mm]をcsvに記録を行うフラグ
+    int32_t flag_aruco_coord_write = -1;    // arucoマーカーの3次元座標[mm]をcsvに書き込むフラグ
+
+
+
+
+
 
     const char* filename_depth = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth.csv";
     //const char* filename_depth = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\depth.csv";
@@ -184,8 +217,41 @@ int main() {
     if (!fp_depth_measure_target_coord) {
         throw std::runtime_error("depth.csv が開けませんでした");
     }
+
+    const char * filename_aruco = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\aruco.csv";
+    //const char* filename_depth = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\aruco.csv";
+    std::ofstream fp_aruco_measure_target_coord(filename_aruco);
+    if (!fp_aruco_measure_target_coord) {
+        throw std::runtime_error("aruco.csv が開けませんでした");
+    }
+
+
     KinectDevice kinectdevice;
 
+    k4a_calibration_t device_calibration;
+    k4a_device_get_calibration(kinectdevice.device, kinectdevice.device_configuration.depth_mode, kinectdevice.device_configuration.color_resolution, &device_calibration);
+    /*
+    k4a_calibration_camera_t depth_calib = device_calibration.depth_camera_calibration;
+    std::cout << std::fixed << std::setprecision(20);
+    std::cout << "resolution width: " << depth_calib.resolution_width << std::endl;
+    std::cout << "resolution height: " << depth_calib.resolution_height << std::endl;
+    std::cout << "principal point x: " << depth_calib.intrinsics.parameters.param.cx << std::endl;
+    std::cout << "principal point y: " << depth_calib.intrinsics.parameters.param.cy << std::endl;
+    std::cout << "focal length x: " << depth_calib.intrinsics.parameters.param.fx << std::endl;
+    std::cout << "focal length y: " << depth_calib.intrinsics.parameters.param.fy << std::endl;
+    std::cout << "radial distortion coefficients:" << std::endl;
+    std::cout << "k1: " << depth_calib.intrinsics.parameters.param.k1 << std::endl;
+    std::cout << "k2: " << depth_calib.intrinsics.parameters.param.k2 << std::endl;
+    std::cout << "k3: " << depth_calib.intrinsics.parameters.param.k3 << std::endl;
+    std::cout << "k4: " << depth_calib.intrinsics.parameters.param.k4 << std::endl;
+    std::cout << "k5: " << depth_calib.intrinsics.parameters.param.k5 << std::endl;
+    std::cout << "k6: " << depth_calib.intrinsics.parameters.param.k6 << std::endl;
+    std::cout << "center of distortion in Z=1 plane, x: " << depth_calib.intrinsics.parameters.param.codx << std::endl;
+    std::cout << "center of distortion in Z=1 plane, y: " << depth_calib.intrinsics.parameters.param.cody << std::endl;
+    std::cout << "tangential distortion coefficient x: " << depth_calib.intrinsics.parameters.param.p1 << std::endl;
+    std::cout << "tangential distortion coefficient y: " << depth_calib.intrinsics.parameters.param.p2 << std::endl;
+    std::cout << "metric radius: " << depth_calib.intrinsics.parameters.param.metric_radius << std::endl;
+    */
 
 
 
@@ -244,35 +310,39 @@ int main() {
                 //    std::cout << show_marker_ids << std::endl;
                 //}
 
-                std::cout << "id:";
-                for (size_t num = 0; num < marker_ids.size(); num++) {
-                    std::cout << marker_ids[num] << ",";
-                }
-                std::cout << std::endl;
+                //std::cout << "id:";
+                //for (size_t num = 0; num < marker_ids.size(); num++) {
+                //    std::cout << marker_ids[num] << ",";
+                //}
+                //std::cout << std::endl;
 
-                for (size_t num = 0; num < marker_ids.size(); num++) {
-                    std::cout << "[" << marker_ids[num] << "]";
-                    std::cout << "corner:";
-                    std::cout << marker_corners[num] << std::endl;
-                }
+                //for (size_t num = 0; num < marker_ids.size(); num++) {
+                //    std::cout << "[" << marker_ids[num] << "]";
+                //    std::cout << "corner:";
+                //    std::cout << marker_corners[num] << std::endl;
+                //}
 
-                std::cout << std::endl << std::endl;
+                //std::cout << std::endl << std::endl;
 
                 if (marker_ids.size() > 0) {
 
                     // 検出したマーカを可視化
                     cv::aruco::drawDetectedMarkers(colorImg, marker_corners, marker_ids);
-                    std::vector<cv::Vec3d> rvecs, tvecs;
 
                     // マーカのrvec, tvecを求める
-                    cv::aruco::estimatePoseSingleMarkers(marker_corners, MARKER_LENGTH, camera_matrix, dist_coeffs, rvecs, tvecs);
+                    cv::aruco::estimatePoseSingleMarkers(marker_corners, MARKER_LENGTH, color_camera_matrix, color_camera_dist_coeffs, rvecs, tvecs);
                     for (int i = 0; i < marker_ids.size(); i++) {
                         std::cout << "tvecs:" << tvecs[i] * 1000 << std::endl;      // 単位[mm]
-                        std::cout << "rvecs:" << rvecs[i] << std::endl;
-                        cv::aruco::drawAxis(colorImg, camera_matrix, dist_coeffs, rvecs[i], tvecs[i], MARKER_LENGTH * 5);
+//                        std::cout << "rvecs:" << rvecs[i] << std::endl;
+                        cv::aruco::drawAxis(colorImg, color_camera_matrix, color_camera_dist_coeffs, rvecs[i], tvecs[i], MARKER_LENGTH * 5);
                     }
                 }
+                //cv::putText(depthcoloredImg, std::to_string(depthimage_center_point), cv::Point(DEPTH_WIDTH / 2, DEPTH_HEIGHT / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(colorImg, "x:" + std::to_string(tvecs[0][0]*1000), cv::Point(100, 300), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(colorImg, "y:" + std::to_string(-tvecs[0][1]*1000), cv::Point(100, 400), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(colorImg, "z:" + std::to_string(tvecs[0][2]*1000), cv::Point(100, 500), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
 
+                cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
                 cv::imshow("colorImg", colorImg);
 
 
@@ -439,8 +509,11 @@ int main() {
                                     //angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * NFOV_FOI_HOR / 2.0;
                                     //measure_target_coord.x = ((depth_coord_center.x - X_CENTER_COORD) * measure_target_coord.z * tan(NFOV_FOI_HOR/2.0/180.0*M_PI)) / X_CENTER_COORD;
                                     measure_target_coord = depth2world(measure_target_coord, depth_coord_center);
-                                    std::cout << std::setprecision(5) << std::setw(10) << measure_target_coord.x << std::setw(10) << measure_target_coord.y << std::setw(10) << measure_target_coord.z << std::setw(10) << depth_coord_center.x << std::setw(10) << depth_coord_center.y << std::setw(10) << std::endl;
+//                                    std::cout << std::setprecision(5) << std::setw(10) << measure_target_coord.x << std::setw(10) << measure_target_coord.y << std::setw(10) << measure_target_coord.z << std::setw(10) << depth_coord_center.x << std::setw(10) << depth_coord_center.y << std::setw(10) << std::endl;
 
+                                    cv::putText(depthcoloredImg, "x:" + std::to_string(measure_target_coord.x), cv::Point(50, 200), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+                                    cv::putText(depthcoloredImg, "y:" + std::to_string(measure_target_coord.y), cv::Point(50, 300), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+                                    cv::putText(depthcoloredImg, "z:" + std::to_string(measure_target_coord.z), cv::Point(50, 400), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
 
 
                                 }
@@ -501,7 +574,19 @@ int main() {
                 break;
             }
 
-            if ()
+            if (key == 'c' && flag_aruco_coord_write == -1) {
+                std::cout << "\n\nArUco記録開始\n\n" << std::endl;
+                flag_aruco_coord_write = 0;
+            }
+            if (flag_aruco_coord_write != -1 && flag_aruco_coord_write < 100) {
+                fp_aruco_measure_target_coord << std::setprecision(10) << tvecs[0][0]*1000 << "," << tvecs[0][1]*1000 << "," << tvecs[0][2]*1000 << std::endl;
+                flag_aruco_coord_write++;
+            }
+            if (flag_aruco_coord_write == 100) {
+                std::cout << "\n\nArUco記録終了\n\n" << std::endl;
+                flag_aruco_coord_write = -1;
+                break;
+            }
         }
     }
     catch (const std::exception &ex)
