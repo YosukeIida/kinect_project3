@@ -552,13 +552,6 @@ int main() {
                 break;      // メインループ抜ける
             }
 
-            //if (key == 's') {
-            //    std::cout << "get_depth_surface_to_csv 開始" << std::endl;
-            //    get_depth_surface_to_csv(depth_image_buffer);
-            //    std::cout << "get_depth_surface_to_csv 終了" << std::endl;
-            //}
-
-            // 
             if (key == 'p' && flag_depth_measure_target_coord == -1) {
                 std::cout << "\n\n3次元データ記録開始\n\n" << std::endl;
                 flag_depth_measure_target_coord = 0;
