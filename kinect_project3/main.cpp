@@ -23,8 +23,9 @@
 
 //  プログラム実行中のキー操作
 //  "q" プログラム終了
-//  "p" デプスカメラ記録開始  100フレーム計測後プログラム終了
+//  "d" デプスカメラ記録開始  100フレーム計測後プログラム終了
 //  "c" カラーカメラ記録開始  100フレーム計測後プログラム終了
+//  "m" 両方記録
 //  
 
 
@@ -63,7 +64,7 @@
 
 
 //  Kinectを立てて撮影する時に切り替える．
-#define KINECT_ATTITUDE     1               // 水平方向 : 0,    垂直方向 : 1
+#define KINECT_ATTITUDE     0               // 水平方向 : 0,    垂直方向 : 1
 
 
 
@@ -159,6 +160,8 @@ int main() {
     int sum_ids = 0;
     std::vector<cv::Vec3d> rvecs, tvecs;        // arucoマーカーのtvec, rvec
 
+    cv::Point3d aruco_coord;
+
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
         // k4a_image_t は画像データと関連するメタデータを管理する
@@ -205,6 +208,8 @@ int main() {
     int key;
     int32_t flag_depth_measure_target_coord = -1;      // 3次元座標[mm]をcsvに記録を行うフラグ
     int32_t flag_aruco_coord_write = -1;    // arucoマーカーの3次元座標[mm]をcsvに書き込むフラグ
+
+    bool flag_close = false;
 
 
 
@@ -336,11 +341,18 @@ int main() {
 //                        std::cout << "rvecs:" << rvecs[i] << std::endl;
                         cv::aruco::drawAxis(colorImg, color_camera_matrix, color_camera_dist_coeffs, rvecs[i], tvecs[i], MARKER_LENGTH * 5);
                     }
+                    aruco_coord = tvecs[0]*1000;
+                    //aruco_coord.x = tvecs[0][0];
+                    //aruco_coord.y = tvecs[0][1];
+                    //aruco_coord.z = tvecs[0][2];
+                }
+                else {
+                    aruco_coord = cv::Vec3d(9999.9999999, 9999.9999999, 9999.9999999);
                 }
                 //cv::putText(depthcoloredImg, std::to_string(depthimage_center_point), cv::Point(DEPTH_WIDTH / 2, DEPTH_HEIGHT / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(colorImg, "x:" + std::to_string(tvecs[0][0]*1000), cv::Point(100, 300), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(colorImg, "y:" + std::to_string(-tvecs[0][1]*1000), cv::Point(100, 400), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(colorImg, "z:" + std::to_string(tvecs[0][2]*1000), cv::Point(100, 500), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(colorImg, "x:" + std::to_string(aruco_coord.x), cv::Point(100, 300), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(colorImg, "y:" + std::to_string(-aruco_coord.y), cv::Point(100, 400), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(colorImg, "z:" + std::to_string(aruco_coord.z), cv::Point(100, 500), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
 
                 cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
                 cv::imshow("colorImg", colorImg);
@@ -559,19 +571,25 @@ int main() {
             //}
 
             // 
-            if (key == 'p' && flag_depth_measure_target_coord == -1) {
+            if (key == 'm' && flag_depth_measure_target_coord == -1 && flag_aruco_coord_write == -1) {
+                std::cout << "\n\n両方記録開始\n\n";
+                flag_depth_measure_target_coord = 0;
+                flag_aruco_coord_write = 0;
+            }
+
+            if (key == 'd' && flag_depth_measure_target_coord == -1) {
                 std::cout << "\n\n3次元データ記録開始\n\n" << std::endl;
                 flag_depth_measure_target_coord = 0;
             }
 
             if (flag_depth_measure_target_coord != -1 && flag_depth_measure_target_coord < 100) {
-                fp_depth_measure_target_coord << std::setprecision(10) << measure_target_coord.x << "," << measure_target_coord.y << "," << measure_target_coord.z << "," << depth_coord_center.x << "," << depth_coord_center.y << std::endl;
+                fp_depth_measure_target_coord << std::fixed << std::setprecision(10) << measure_target_coord.x << "," << measure_target_coord.y << "," << measure_target_coord.z << "," << depth_coord_center.x << "," << depth_coord_center.y << std::endl;
                 flag_depth_measure_target_coord++;
             }
             if (flag_depth_measure_target_coord == 100) {
                 std::cout << "\n\n3次元データ記録終了\n\n" << std::endl;
                 flag_depth_measure_target_coord = -1;
-                break;
+                flag_close = true;
             }
 
             if (key == 'c' && flag_aruco_coord_write == -1) {
@@ -579,12 +597,17 @@ int main() {
                 flag_aruco_coord_write = 0;
             }
             if (flag_aruco_coord_write != -1 && flag_aruco_coord_write < 100) {
-                fp_aruco_measure_target_coord << std::setprecision(10) << tvecs[0][0]*1000 << "," << tvecs[0][1]*1000 << "," << tvecs[0][2]*1000 << std::endl;
+                fp_aruco_measure_target_coord << std::fixed << std::setprecision(10) << aruco_coord.x << "," << -aruco_coord.y << "," << aruco_coord.z << std::endl;
                 flag_aruco_coord_write++;
             }
             if (flag_aruco_coord_write == 100) {
                 std::cout << "\n\nArUco記録終了\n\n" << std::endl;
                 flag_aruco_coord_write = -1;
+                flag_close = true;
+            }
+
+
+            if (flag_close == true) {
                 break;
             }
         }
