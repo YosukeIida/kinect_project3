@@ -230,28 +230,16 @@ int main() {
 
     k4a_calibration_t device_calibration;
     k4a_device_get_calibration(kinectdevice.device, kinectdevice.device_configuration.depth_mode, kinectdevice.device_configuration.color_resolution, &device_calibration);
-    /*
-    k4a_calibration_camera_t depth_calib = device_calibration.depth_camera_calibration;
-    std::cout << std::fixed << std::setprecision(20);
-    std::cout << "resolution width: " << depth_calib.resolution_width << std::endl;
-    std::cout << "resolution height: " << depth_calib.resolution_height << std::endl;
-    std::cout << "principal point x: " << depth_calib.intrinsics.parameters.param.cx << std::endl;
-    std::cout << "principal point y: " << depth_calib.intrinsics.parameters.param.cy << std::endl;
-    std::cout << "focal length x: " << depth_calib.intrinsics.parameters.param.fx << std::endl;
-    std::cout << "focal length y: " << depth_calib.intrinsics.parameters.param.fy << std::endl;
-    std::cout << "radial distortion coefficients:" << std::endl;
-    std::cout << "k1: " << depth_calib.intrinsics.parameters.param.k1 << std::endl;
-    std::cout << "k2: " << depth_calib.intrinsics.parameters.param.k2 << std::endl;
-    std::cout << "k3: " << depth_calib.intrinsics.parameters.param.k3 << std::endl;
-    std::cout << "k4: " << depth_calib.intrinsics.parameters.param.k4 << std::endl;
-    std::cout << "k5: " << depth_calib.intrinsics.parameters.param.k5 << std::endl;
-    std::cout << "k6: " << depth_calib.intrinsics.parameters.param.k6 << std::endl;
-    std::cout << "center of distortion in Z=1 plane, x: " << depth_calib.intrinsics.parameters.param.codx << std::endl;
-    std::cout << "center of distortion in Z=1 plane, y: " << depth_calib.intrinsics.parameters.param.cody << std::endl;
-    std::cout << "tangential distortion coefficient x: " << depth_calib.intrinsics.parameters.param.p1 << std::endl;
-    std::cout << "tangential distortion coefficient y: " << depth_calib.intrinsics.parameters.param.p2 << std::endl;
-    std::cout << "metric radius: " << depth_calib.intrinsics.parameters.param.metric_radius << std::endl;
-    */
+
+    k4a_transformation_t transformation_handle = NULL;
+    transformation_handle = k4a_transformation_create(&device_calibration);
+
+    k4a_image_t transformed_depth_image_handle;
+    k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+        k4a_image_get_width_pixels(color_image_handle),
+        k4a_image_get_height_pixels(color_image_handle),
+        k4a_image_get_width_pixels(color_image_handle) * (int)sizeof(uint16_t),
+        &transformed_depth_image_handle);
 
 
 
@@ -377,6 +365,9 @@ int main() {
                     depthcoloredImg.at<cv::Vec3b>(y, 320)[1] = 255;
 
                 }
+
+                k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image_handle, transformed_depth_image_handle);
+
 
                 //// デプス画像の中央, 上下左右の深度を格納
                 //depthimage_center_point = depth_image_buffer[DEPTH_HEIGHT / 2 * DEPTH_WIDTH + DEPTH_WIDTH / 2];
@@ -541,6 +532,7 @@ int main() {
 
                 k4a_image_release(color_image_handle);
                 k4a_image_release(depth_image_handle);
+                k4a_image_release(transformed_depth_image_handle);
                 k4a_capture_release(capture);
 
             }
