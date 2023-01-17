@@ -42,6 +42,7 @@
 #include <opencv2/opencv.hpp>       // opencv347
 #include <opencv2/aruco.hpp>        // opencv contribution aruco
 #include <k4a/k4a.h>                // azure kinect sdk
+#include <k4a/k4atypes.h>
 
 #include "kinectdevice.h"     // 自作ヘッダ
 
@@ -103,6 +104,7 @@ int main() {
     cv::Mat depthrangeImg;
     cv::Mat depthcoloredImg;            // depthImgをカラー画像に変換して境界などを描画して表示
 
+    cv::Mat transformedImg;
 
     // カラーカメラ行列 (カメラ内部行列)
     cv::Mat color_camera_matrix(3, 3, CV_64FC1);
@@ -179,7 +181,9 @@ int main() {
 
     uint16_t* depth_image_buffer = 0;        // デプスイメージのデータのポインタ
 
-    std::vector<std::vector< int32_t > > depthdata(DEPTH_WIDTH, std::vector<int32_t>(DEPTH_HEIGHT));
+    std::vector<std::vector< int32_t >> depthdata(DEPTH_WIDTH, std::vector<int32_t>(DEPTH_HEIGHT));
+
+
 
 
         // 計測対象の上下左右の端の深度を格納
@@ -233,13 +237,6 @@ int main() {
 
     k4a_transformation_t transformation_handle = NULL;
     transformation_handle = k4a_transformation_create(&device_calibration);
-
-    k4a_image_t transformed_depth_image_handle;
-    k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
-        k4a_image_get_width_pixels(color_image_handle),
-        k4a_image_get_height_pixels(color_image_handle),
-        k4a_image_get_width_pixels(color_image_handle) * (int)sizeof(uint16_t),
-        &transformed_depth_image_handle);
 
 
 
@@ -339,7 +336,8 @@ int main() {
 
             if (depth_image_handle) {
                 // デプスイメージのハンドルから深度データ，高さ，幅を取得する
-                get_depth_image_data(&depth_image_handle, &depth_image_buffer);
+                //get_depth_image_data(&depth_image_handle, &depth_image_buffer);
+                depth_image_buffer = (uint16_t*)k4a_image_get_buffer(depth_image_handle);
 
                 // uint8_t* depth_image_bufferの深度データを vector<vector<int32_t>> depthdataの2次元配列に格納する
                 set_distance(depthdata, depth_image_buffer);
@@ -366,7 +364,49 @@ int main() {
 
                 }
 
+
+                k4a_image_t transformed_depth_image_handle;
+                k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+                    k4a_image_get_width_pixels(color_image_handle),
+                    k4a_image_get_height_pixels(color_image_handle),
+                    k4a_image_get_width_pixels(color_image_handle) * (int)sizeof(uint16_t),
+                    &transformed_depth_image_handle);
+
                 k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image_handle, transformed_depth_image_handle);
+                
+                transformedImg = cv::Mat(
+                    k4a_image_get_height_pixels(transformed_depth_image_handle),
+                    k4a_image_get_width_pixels(transformed_depth_image_handle),
+                    CV_8UC1);
+
+                std::vector<std::vector<int32_t>> transformed_depthdata(k4a_image_get_width_pixels(transformed_depth_image_handle), std::vector<int32_t>(k4a_image_get_height_pixels(transformed_depth_image_handle)));
+                //set_distance(transformed_depthdata, (uint16_t*)k4a_image_get_buffer(transformed_depth_image_handle));
+                int ptr = 0;
+                uint16_t* transformed_depth_image_buffer = (uint16_t*)k4a_image_get_buffer(transformed_depth_image_handle);
+                for (int y = 0; y < k4a_image_get_height_pixels(transformed_depth_image_handle); y++) {
+                    for (int x = 0; x < k4a_image_get_width_pixels(transformed_depth_image_handle); x++) {
+                    transformed_depthdata[x][y] = transformed_depth_image_buffer[ptr];
+                    }
+                }
+
+                //make_depthImg_2darray(&transformedImg, transformed_depthdata);
+                for (int y = 0; y < k4a_image_get_height_pixels(transformed_depth_image_handle); y++) {
+                    for (int x = 0; x < k4a_image_get_width_pixels(transformed_depth_image_handle); x++) {
+
+                        // グレースケール画像作成 350mmを白(255), 605mmを黒(0)で255段階
+                        if (transformed_depthdata[x][y] >= DEPTH_IMAGE_NEAR_LIMIT && transformed_depthdata[x][y] < DEPTH_IMAGE_NEAR_LIMIT + 255) {
+                            transformedImg.at<uint8_t>(y, x) = 255 - (transformed_depthdata[x][y] - DEPTH_IMAGE_NEAR_LIMIT);
+                        }
+                        else if (transformed_depthdata[x][y] == 0) {
+                            transformedImg.at<uint8_t>(y, x) = 255;
+                        }
+                        else {
+                            transformedImg.at<uint8_t>(y, x) = 0;
+                        }
+                    }
+                }
+
+                cv::imshow("transformedImg", transformedImg);
 
 
                 //// デプス画像の中央, 上下左右の深度を格納
