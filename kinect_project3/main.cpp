@@ -104,7 +104,6 @@ int main() {
     cv::Mat depthrangeImg;
     cv::Mat depthcoloredImg;            // depthImgをカラー画像に変換して境界などを描画して表示
 
-    cv::Mat transformedImg;
 
     // カラーカメラ行列 (カメラ内部行列)
     cv::Mat color_camera_matrix(3, 3, CV_64FC1);
@@ -215,15 +214,15 @@ int main() {
 
 
 
-    const char* filename_depth = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth.csv";
-    //const char* filename_depth = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\depth.csv";
+    //const char* filename_depth = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth.csv";
+    const char* filename_depth = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\depth.csv";
     std::ofstream fp_depth_measure_target_coord(filename_depth);
     if (!fp_depth_measure_target_coord) {
         throw std::runtime_error("depth.csv が開けませんでした");
     }
 
-    const char * filename_aruco = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\aruco.csv";
-    //const char* filename_depth = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\aruco.csv";
+    //const char * filename_aruco = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\aruco.csv";
+    const char* filename_aruco = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\aruco.csv";
     std::ofstream fp_aruco_measure_target_coord(filename_aruco);
     if (!fp_aruco_measure_target_coord) {
         throw std::runtime_error("aruco.csv が開けませんでした");
@@ -323,9 +322,9 @@ int main() {
                     }
                 }
                 //cv::putText(depthcoloredImg, std::to_string(depthimage_center_point), cv::Point(DEPTH_WIDTH / 2, DEPTH_HEIGHT / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(colorImg, "x:" + std::to_string(tvecs[0][0]*1000), cv::Point(100, 300), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(colorImg, "y:" + std::to_string(-tvecs[0][1]*1000), cv::Point(100, 400), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
-                cv::putText(colorImg, "z:" + std::to_string(tvecs[0][2]*1000), cv::Point(100, 500), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(colorImg, "x:" + std::to_string(tvecs[0][0]*1000), cv::Point(100, 300), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(colorImg, "y:" + std::to_string(-tvecs[0][1]*1000), cv::Point(100, 400), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
+                //cv::putText(colorImg, "z:" + std::to_string(tvecs[0][2]*1000), cv::Point(100, 500), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
 
                 cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
                 cv::imshow("colorImg", colorImg);
@@ -374,24 +373,30 @@ int main() {
 
                 k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image_handle, transformed_depth_image_handle);
                 
+                cv::Mat transformedImg;
                 transformedImg = cv::Mat(
                     k4a_image_get_height_pixels(transformed_depth_image_handle),
                     k4a_image_get_width_pixels(transformed_depth_image_handle),
                     CV_8UC1);
+                
+                int color_image_width_pixels = k4a_image_get_width_pixels(color_image_handle);
+                int color_image_height_pixels = k4a_image_get_height_pixels(color_image_handle);
 
-                std::vector<std::vector<int32_t>> transformed_depthdata(k4a_image_get_width_pixels(transformed_depth_image_handle), std::vector<int32_t>(k4a_image_get_height_pixels(transformed_depth_image_handle)));
+
+                std::vector<std::vector<int32_t>> transformed_depthdata(color_image_width_pixels, std::vector<int32_t>(color_image_height_pixels));
                 //set_distance(transformed_depthdata, (uint16_t*)k4a_image_get_buffer(transformed_depth_image_handle));
                 int ptr = 0;
                 uint16_t* transformed_depth_image_buffer = (uint16_t*)k4a_image_get_buffer(transformed_depth_image_handle);
-                for (int y = 0; y < k4a_image_get_height_pixels(transformed_depth_image_handle); y++) {
-                    for (int x = 0; x < k4a_image_get_width_pixels(transformed_depth_image_handle); x++) {
-                    transformed_depthdata[x][y] = transformed_depth_image_buffer[ptr];
+                for (int y = 0; y < color_image_height_pixels; y++) {
+                    for (int x = 0; x < color_image_width_pixels; x++) {
+                        transformed_depthdata[x][y] = transformed_depth_image_buffer[ptr];
+                        ptr++;
                     }
                 }
 
                 //make_depthImg_2darray(&transformedImg, transformed_depthdata);
-                for (int y = 0; y < k4a_image_get_height_pixels(transformed_depth_image_handle); y++) {
-                    for (int x = 0; x < k4a_image_get_width_pixels(transformed_depth_image_handle); x++) {
+                for (int y = 0; y < color_image_height_pixels; y++) {
+                    for (int x = 0; x < color_image_width_pixels; x++) {
 
                         // グレースケール画像作成 350mmを白(255), 605mmを黒(0)で255段階
                         if (transformed_depthdata[x][y] >= DEPTH_IMAGE_NEAR_LIMIT && transformed_depthdata[x][y] < DEPTH_IMAGE_NEAR_LIMIT + 255) {
