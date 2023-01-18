@@ -214,15 +214,15 @@ int main() {
 
 
 
-    //const char* filename_depth = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth.csv";
-    const char* filename_depth = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\depth.csv";
+    const char* filename_depth = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\depth.csv";
+    //const char* filename_depth = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\depth.csv";
     std::ofstream fp_depth_measure_target_coord(filename_depth);
     if (!fp_depth_measure_target_coord) {
         throw std::runtime_error("depth.csv が開けませんでした");
     }
 
-    //const char * filename_aruco = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\aruco.csv";
-    const char* filename_aruco = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\aruco.csv";
+    const char * filename_aruco = "C:\\Users\\student\\cpp_program\\kinect_project3\\data\\aruco.csv";
+    //const char* filename_aruco = "C:\\Users\\yosuk\\cpp_program\\kinect_project3\\data\\aruco.csv";
     std::ofstream fp_aruco_measure_target_coord(filename_aruco);
     if (!fp_aruco_measure_target_coord) {
         throw std::runtime_error("aruco.csv が開けませんでした");
@@ -326,7 +326,7 @@ int main() {
                 //cv::putText(colorImg, "y:" + std::to_string(-tvecs[0][1]*1000), cv::Point(100, 400), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
                 //cv::putText(colorImg, "z:" + std::to_string(tvecs[0][2]*1000), cv::Point(100, 500), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
 
-                cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
+                //cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
                 cv::imshow("colorImg", colorImg);
 
 
@@ -410,8 +410,19 @@ int main() {
                         }
                     }
                 }
-
+                //cv::resize(transformedImg, transformedImg, cv::Size(), 0.5, 0.5);
+                cv::cvtColor(transformedImg, transformedImg, cv::COLOR_GRAY2BGR);
                 cv::imshow("transformedImg", transformedImg);
+
+                cv::addWeighted(colorImg, 0.5, transformedImg, 0.5, 0.0, colorImg);
+                cv::imshow("mixed", colorImg);
+
+
+
+
+
+
+
 
 
                 //// デプス画像の中央, 上下左右の深度を格納
@@ -570,6 +581,23 @@ int main() {
                     }
                 }
 
+
+                k4a_float2_t depth_point_2d;
+                depth_point_2d.xy.x = measure_target_coord.x;
+                depth_point_2d.xy.y = measure_target_coord.y;
+
+                k4a_float3_t depth_mm_3d;
+
+                int valid;
+
+
+
+                k4a_calibration_2d_to_3d(&device_calibration, &depth_point_2d, measure_target_coord.z, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR, &depth_mm_3d, &valid);
+                cv::putText(depthcoloredImg, "x:" + std::to_string(depth_mm_3d.xyz.x), cv::Point(400, 200), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(depthcoloredImg, "y:" + std::to_string(depth_mm_3d.xyz.y), cv::Point(400, 300), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+                cv::putText(depthcoloredImg, "z:" + std::to_string(depth_mm_3d.xyz.z), cv::Point(400, 400), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+
+                
 
                 cv::imshow("depthcoloredImg", depthcoloredImg);
                 cv::imshow("depthrangeImg", depthrangeImg);
