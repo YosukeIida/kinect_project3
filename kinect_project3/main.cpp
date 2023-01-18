@@ -51,10 +51,10 @@
 #define COLOR_WIDTH         1920            // カラーセンサの横幅
 #define COLOR_HEIGHT        1080            // カラーセンサの縦幅
 
-#define MARKER_LENGTH       0.018           // ArUcoマーカー1辺の長さ [m]
+#define MARKER_LENGTH       0.0180           // ArUcoマーカー1辺の長さ [m]
 
 #define DEPTH_SEARCH_BORDER  520            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_FAR_LIMIT   650
+#define DEPTH_IMAGE_FAR_LIMIT   550
 #define DEPTH_IMAGE_NEAR_LIMIT  450         // グレースケール画像にする最小距離
          // グレースケール画像にする最大距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
@@ -390,6 +390,13 @@ int main() {
 
                 }
 
+
+
+
+
+
+
+
                 //// デプス画像の中央, 上下左右の深度を格納
                 //depthimage_center_point = depth_image_buffer[DEPTH_HEIGHT / 2 * DEPTH_WIDTH + DEPTH_WIDTH / 2];
                 //depthimage_left_point = depth_image_buffer[DEPTH_HEIGHT / 2 * DEPTH_WIDTH + 20];
@@ -447,7 +454,6 @@ int main() {
 
 
 
-
                 //std::cout << scan_line_upper << scan_line_lower << std::endl;
                 scan_line_lower = scan_line_upper + 20;
                 int scan_line_row = (int)(scan_line_upper + scan_line_lower) / 2;
@@ -457,6 +463,19 @@ int main() {
                         depthcoloredImg.at<cv::Vec3b>(scan_line_lower, x) = cv::Vec3b(255, 255, 0);
                     }
                 }
+
+
+                k4a_float2_t depth_point_2d;
+                
+                k4a_float3_t depth_mm_3d;
+
+                int valid;
+
+
+
+
+
+
 
                 // 左側を探索
                 if (scan_line_row > 0 && scan_line_row < DEPTH_HEIGHT) {
@@ -526,6 +545,17 @@ int main() {
                                     cv::putText(depthcoloredImg, "x:" + std::to_string(measure_target_coord.x), cv::Point(50, 200), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
                                     cv::putText(depthcoloredImg, "y:" + std::to_string(measure_target_coord.y), cv::Point(50, 300), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
                                     cv::putText(depthcoloredImg, "z:" + std::to_string(measure_target_coord.z), cv::Point(50, 400), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+
+
+                                    depth_point_2d.xy.x = depth_coord_center.x;
+                                    depth_point_2d.xy.y = depth_coord_center.y;
+
+
+                                    k4a_calibration_2d_to_3d(&device_calibration, &depth_point_2d, measure_target_coord.z, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR, &depth_mm_3d, &valid);
+                                    cv::putText(depthcoloredImg, "x:" + std::to_string(depth_mm_3d.xyz.x), cv::Point(400, 200), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+                                    cv::putText(depthcoloredImg, "y:" + std::to_string(depth_mm_3d.xyz.y), cv::Point(400, 300), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+                                    cv::putText(depthcoloredImg, "z:" + std::to_string(depth_mm_3d.xyz.z), cv::Point(400, 400), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+
 
 
                                 }
