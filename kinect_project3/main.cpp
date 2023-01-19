@@ -356,6 +356,7 @@ int main() {
 
                 cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
                 cv::imshow("colorImg", colorImg);
+;
 
 
             }
@@ -389,6 +390,7 @@ int main() {
                     depthcoloredImg.at<cv::Vec3b>(y, 320)[1] = 255;
 
                 }
+
 
 
 
