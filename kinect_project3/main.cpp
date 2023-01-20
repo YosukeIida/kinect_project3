@@ -53,9 +53,9 @@
 
 #define MARKER_LENGTH       0.0180           // ArUcoマーカー1辺の長さ [m]
 
-#define DEPTH_SEARCH_BORDER  520            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_FAR_LIMIT   550
-#define DEPTH_IMAGE_NEAR_LIMIT  450         // グレースケール画像にする最小距離
+#define DEPTH_SEARCH_BORDER  640            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_IMAGE_FAR_LIMIT   650
+#define DEPTH_IMAGE_NEAR_LIMIT  550         // グレースケール画像にする最小距離
          // グレースケール画像にする最大距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
@@ -89,6 +89,7 @@ int search_measuretarget_right(std::vector<std::vector<int32_t> > depthdata, int
 int search_measuretarget_upper(std::vector<std::vector<int32_t> > depthdata, int32_t scan_line_col);
 int search_measuretarget_lower(std::vector<std::vector<int32_t> > depthdata, int32_t scan_line_col, int32_t depth_data_point_upper);
 cv::Point3d depth2world(cv::Point3d measure_target_coord, cv::Point2d depth_coord_center);
+//void set_transformed_distance(std::vector<std::vector<int32_t> >& depthdata, uint16_t* depth_image_buffer, k4a_calibration_t device_calibration);
 
 
 
@@ -184,6 +185,8 @@ int main() {
 
     std::vector<std::vector< int32_t > > depthdata(DEPTH_WIDTH, std::vector<int32_t>(DEPTH_HEIGHT));
 
+    std::vector<std::vector< int32_t > > transformed_depthdata(DEPTH_WIDTH, std::vector<int32_t>(DEPTH_HEIGHT));
+
 
         // 計測対象の上下左右の端の深度を格納
     int32_t depth_data_point_left;          // 計測対象の左端の深度
@@ -204,6 +207,12 @@ int main() {
     cv::Point2d depth_coord_center;         // 計測対象の中心座標 [pixcel]
 
     double depth_data_center_5x5;           // 計測対象中心深度 25マス移動平均
+
+    k4a_float2_t depth_point_2d;
+
+    k4a_float3_t depth_mm_3d;
+
+    int valid;
 
     int key;
     int32_t flag_depth_measure_target_coord = -1;      // 3次元座標[mm]をcsvに記録を行うフラグ
@@ -315,11 +324,11 @@ int main() {
                 //    std::cout << show_marker_ids << std::endl;
                 //}
 
-                //std::cout << "id:";
-                //for (size_t num = 0; num < marker_ids.size(); num++) {
-                //    std::cout << marker_ids[num] << ",";
-                //}
-                //std::cout << std::endl;
+                std::cout << "id:";
+                for (size_t num = 0; num < marker_ids.size(); num++) {
+                    std::cout << marker_ids[num] << ",";
+                }
+                std::cout << std::endl;
 
                 //for (size_t num = 0; num < marker_ids.size(); num++) {
                 //    std::cout << "[" << marker_ids[num] << "]";
@@ -329,25 +338,35 @@ int main() {
 
                 //std::cout << std::endl << std::endl;
 
-                if (marker_ids.size() > 0) {
-
+                size_t tvecs_iterator = 0;
+                if (marker_ids.size() > 0) {                    // 画面にマーカーが移っているとき
                     // 検出したマーカを可視化
                     cv::aruco::drawDetectedMarkers(colorImg, marker_corners, marker_ids);
 
-                    // マーカのrvec, tvecを求める
-                    cv::aruco::estimatePoseSingleMarkers(marker_corners, MARKER_LENGTH, color_camera_matrix, color_camera_dist_coeffs, rvecs, tvecs);
-                    for (int i = 0; i < marker_ids.size(); i++) {
-                        std::cout << "tvecs:" << tvecs[i] * 1000 << std::endl;      // 単位[mm]
-//                        std::cout << "rvecs:" << rvecs[i] << std::endl;
-                        cv::aruco::drawAxis(colorImg, color_camera_matrix, color_camera_dist_coeffs, rvecs[i], tvecs[i], MARKER_LENGTH * 5);
+                    for (size_t num = 0; num < marker_ids.size(); num++) {
+                        if (marker_ids[num] == 0) {             // マーカーIDが "0"のとき
+                            // マーカのrvec, tvecを求める
+                            cv::aruco::estimatePoseSingleMarkers(marker_corners, MARKER_LENGTH, color_camera_matrix, color_camera_dist_coeffs, rvecs, tvecs);
+        //                        std::cout << "tvecs:" << tvecs[i] * 1000 << std::endl;      // 単位[mm]
+        //                        std::cout << "rvecs:" << rvecs[i] << std::endl;
+                            cv::aruco::drawAxis(colorImg, color_camera_matrix, color_camera_dist_coeffs, rvecs[tvecs_iterator], tvecs[tvecs_iterator], MARKER_LENGTH * 5);
+                            aruco_coord = tvecs[tvecs_iterator]*1000;
+                            //aruco_coord.x = tvecs[0][0];
+                            //aruco_coord.y = tvecs[0][1];
+                            //aruco_coord.z = tvecs[0][2];
+                        }
+                        else {
+                            aruco_coord.x = 9999.99;
+                            aruco_coord.y = 9999.99;
+                            aruco_coord.z = 9999.99;
+                        }
+                    tvecs_iterator++;
                     }
-                    aruco_coord = tvecs[0]*1000;
-                    //aruco_coord.x = tvecs[0][0];
-                    //aruco_coord.y = tvecs[0][1];
-                    //aruco_coord.z = tvecs[0][2];
                 }
                 else {
-                    aruco_coord = cv::Vec3d(9999.9999999, 9999.9999999, 9999.9999999);
+                    aruco_coord.x = 9999.99;
+                    aruco_coord.y = 9999.99;
+                    aruco_coord.z = 9999.99;
                 }
                 //cv::putText(depthcoloredImg, std::to_string(depthimage_center_point), cv::Point(DEPTH_WIDTH / 2, DEPTH_HEIGHT / 2), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(0, 255, 255), 2, CV_AA);
                 cv::putText(colorImg, "x:" + std::to_string(aruco_coord.x), cv::Point(100, 300), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
@@ -374,6 +393,7 @@ int main() {
                 // make_depthImg(&depthImg, depth_image_buffer);
                 make_depthImg_2darray(&depthImg, depthdata);
                 
+//                set_transformed_distance(transformed_depthdata, depth_image_buffer, device_calibration);
 
                 depthrangeImg = cv::Mat(DEPTH_HEIGHT, DEPTH_WIDTH, CV_8UC1);
                 make_depthrangeImg(&depthrangeImg, depthdata);
@@ -467,13 +487,6 @@ int main() {
                 }
 
 
-                k4a_float2_t depth_point_2d;
-                
-                k4a_float3_t depth_mm_3d;
-
-                int valid;
-
-
 
 
 
@@ -555,7 +568,7 @@ int main() {
 
                                     k4a_calibration_2d_to_3d(&device_calibration, &depth_point_2d, measure_target_coord.z, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR, &depth_mm_3d, &valid);
                                     cv::putText(depthcoloredImg, "x:" + std::to_string(depth_mm_3d.xyz.x), cv::Point(400, 200), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
-                                    cv::putText(depthcoloredImg, "y:" + std::to_string(depth_mm_3d.xyz.y), cv::Point(400, 300), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
+                                    cv::putText(depthcoloredImg, "y:" + std::to_string(-depth_mm_3d.xyz.y), cv::Point(400, 300), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
                                     cv::putText(depthcoloredImg, "z:" + std::to_string(depth_mm_3d.xyz.z), cv::Point(400, 400), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 255, 255), 2, CV_AA);
 
 
@@ -615,7 +628,11 @@ int main() {
             }
 
             if (flag_depth_measure_target_coord != -1 && flag_depth_measure_target_coord < 100) {
-                fp_depth_measure_target_coord << std::fixed << std::setprecision(10) << measure_target_coord.x << "," << measure_target_coord.y << "," << measure_target_coord.z << "," << depth_coord_center.x << "," << depth_coord_center.y << std::endl;
+                fp_depth_measure_target_coord << std::fixed << std::setprecision(10) 
+                    << depth_mm_3d.xyz.x << "," << -depth_mm_3d.xyz.y << "," << depth_mm_3d.xyz.z << "," 
+                    << depth_coord_center.x << "," << depth_coord_center.y <<","
+                    << measure_target_coord.x << "," << measure_target_coord.y <<"," << measure_target_coord.z << std::endl;
+                
                 flag_depth_measure_target_coord++;
             }
             if (flag_depth_measure_target_coord == 100) {
@@ -678,6 +695,22 @@ void set_distance(std::vector<std::vector<int32_t> >& depthdata, uint16_t* depth
     }
 }
 
+//
+//void set_transformed_distance(std::vector<std::vector<int32_t> >& depthdata, uint16_t* depth_image_buffer, k4a_calibration_t device_calibration) {
+//    int ptr = 0;
+//    k4a_float2_t depth_point_2d;
+//    k4a_float3_t depth_mm_3d;
+//    int valid;
+//    for (int y = 0; y < DEPTH_HEIGHT; y++) {
+//        for (int x = 0; x < DEPTH_WIDTH; x++) {
+//            depth_point_2d.xy.x = x;
+//            depth_point_2d.xy.y = y;
+//            k4a_calibration_2d_to_3d(&device_calibration, &depth_point_2d, depth_image_buffer[ptr], K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_COLOR, &depth_mm_3d, &valid);
+//            depthdata[x][y] = depth_mm_3d.xyz.z;
+//            ptr++;
+//        }
+//    }
+//}
 
 // グレースケールのデプス画像を作成
 // depth_image_buffer をラスタ操作で depthImg.data に深度データを入れていく．
