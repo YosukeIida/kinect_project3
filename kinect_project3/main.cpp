@@ -51,7 +51,9 @@
 #define COLOR_WIDTH         1920            // カラーセンサの横幅
 #define COLOR_HEIGHT        1080            // カラーセンサの縦幅
 
-#define MARKER_LENGTH       0.0180           // ArUcoマーカー1辺の長さ [m]
+#define MARKER_LENGTH       0.0175           // ArUcoマーカー1辺の長さ [m]
+
+#define COLOR_IMAGE_EXPOSURE_TIME       20000   // カラーイメージの露出時間
 
 #define DEPTH_SEARCH_BORDER  640            // 計測対象を探索する境界値 この値より手前を探索する
 #define DEPTH_IMAGE_FAR_LIMIT   650
@@ -289,6 +291,9 @@ int main() {
             case K4A_WAIT_RESULT_FAILED:
                 throw std::runtime_error("キャプチャに失敗しました");
             }
+
+
+           // k4a_image_set_exposure_usec(color_image_handle, COLOR_IMAGE_EXPOSURE_TIME);
 
             // キャプチャハンドルからカラーイメージのハンドルを取得する
             color_image_handle = k4a_capture_get_color_image(capture);
@@ -821,7 +826,7 @@ int search_measuretarget_right(std::vector<std::vector<int32_t> > depthdata, int
         if (y >= DEPTH_HEIGHT || x >= DEPTH_WIDTH) {
             break;
         }
-        else if (depthdata[x][y] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depthdata[x][y] - depthdata[x + 1][y]), 2.0)) > 3.0) {
+        else if (depthdata[x][y] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depthdata[x][y] - depthdata[x + 1][y]), 2.0)) > 5.0) {
             temp_val = x;
             break;
         }
@@ -849,7 +854,7 @@ int search_measuretarget_lower(std::vector<std::vector<int32_t> > depthdata, int
     int temp_val = -1;
     int x = scan_line_col;
     for (int y = depth_data_point_upper + 5; y < DEPTH_HEIGHT; y++) {
-        if (depthdata[x][y] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depthdata[x][y] - depthdata[x][y + 1]), 2.0)) > 3.0) {
+        if (depthdata[x][y] < DEPTH_SEARCH_BORDER && std::sqrt(std::pow((depthdata[x][y] - depthdata[x][y + 1]), 2.0)) > 4.0) {
             temp_val = y;
             break;
         }
