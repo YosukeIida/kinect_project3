@@ -53,7 +53,7 @@
 
 #define MARKER_LENGTH       0.0175           // ArUcoマーカー1辺の長さ [m]
 
-#define COLOR_IMAGE_EXPOSURE_TIME       20000   // カラーイメージの露出時間
+#define COLOR_IMAGE_EXPOSURE_TIME       	125000   // カラーイメージの露出時間
 
 #define DEPTH_SEARCH_BORDER  640            // 計測対象を探索する境界値 この値より手前を探索する
 #define DEPTH_IMAGE_FAR_LIMIT   650
@@ -293,10 +293,10 @@ int main() {
             }
 
 
-           // k4a_image_set_exposure_usec(color_image_handle, COLOR_IMAGE_EXPOSURE_TIME);
 
             // キャプチャハンドルからカラーイメージのハンドルを取得する
             color_image_handle = k4a_capture_get_color_image(capture);
+//            k4a_image_set_exposure_usec(color_image_handle, COLOR_IMAGE_EXPOSURE_TIME);
             // キャプチャハンドルからデプスイメージのハンドルを取得する
             depth_image_handle = k4a_capture_get_depth_image(capture);
 

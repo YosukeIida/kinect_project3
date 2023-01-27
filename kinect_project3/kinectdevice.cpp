@@ -50,7 +50,7 @@ KinectDevice::KinectDevice():
     device_configuration.depth_delay_off_color_usec = 0;
     device_configuration.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
     device_configuration.subordinate_delay_off_master_usec = 0;
-    device_configuration.disable_streaming_indicator = true;
+    device_configuration.disable_streaming_indicator = false;
 
     // カメラを起動する
         // 終了時は "k4a_device_stop_cameras()" を呼び出す
