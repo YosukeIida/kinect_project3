@@ -51,9 +51,10 @@
 #define COLOR_WIDTH         1920            // カラーセンサの横幅
 #define COLOR_HEIGHT        1080            // カラーセンサの縦幅
 
-#define MARKER_LENGTH       0.0175           // ArUcoマーカー1辺の長さ [m]
+#define MARKER_LENGTH       0.0176           // ArUcoマーカー1辺の長さ [m]
 
-#define COLOR_IMAGE_EXPOSURE_TIME       	125000   // カラーイメージの露出時間
+#define COLOR_IMAGE_EXPOSURE_TIME       	66670   // カラーイメージの露出時間
+//https://learn.microsoft.com/ja-jp/azure/kinect-dk/hardware-specification#depth-camera-supported-operating-modes
 
 #define DEPTH_SEARCH_BORDER  640            // 計測対象を探索する境界値 この値より手前を探索する
 #define DEPTH_IMAGE_FAR_LIMIT   650
@@ -176,6 +177,15 @@ int main() {
 
     uint8_t* color_image_buffer;        // カラーイメージのデータのポインタ
 
+    //カラーカメラの動画ファイルのパス
+    std::string color_movie_filepath = "C:\\Users\\student\\cpp_program\\kinect_project3\\moviedata\\colormovie.mp4";;
+
+    cv::VideoWriter writer;
+    int fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v'); // ビデオフォーマットの指定( ISO MPEG-4 / .mp4)
+
+    //動画ファイルを書き出すためのオブジェクト
+
+    writer.open(color_movie_filepath, fourcc, 30, cv::Size(COLOR_WIDTH, COLOR_HEIGHT));
 
 
 
@@ -292,6 +302,12 @@ int main() {
                 throw std::runtime_error("キャプチャに失敗しました");
             }
 
+            k4a_color_control_command_t command = K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE;
+            k4a_color_control_mode_t mode = K4A_COLOR_CONTROL_MODE_MANUAL;
+            k4a_device_set_color_control(kinectdevice.device, command, mode, COLOR_IMAGE_EXPOSURE_TIME);
+            int32_t exposure_time;
+            k4a_device_get_color_control(kinectdevice.device, command, &mode, &exposure_time);
+            std::cout << exposure_time << std::endl;
 
 
             // キャプチャハンドルからカラーイメージのハンドルを取得する
@@ -378,9 +394,14 @@ int main() {
                 cv::putText(colorImg, "y:" + std::to_string(-aruco_coord.y), cv::Point(100, 400), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
                 cv::putText(colorImg, "z:" + std::to_string(aruco_coord.z), cv::Point(100, 500), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 255, 255), 2, CV_AA);
 
-                cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
+                //cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
                 cv::imshow("colorImg", colorImg);
-;
+
+
+
+                
+                writer.write(colorImg);
+                
 
 
             }
@@ -611,6 +632,7 @@ int main() {
 
             key = cv::waitKey(10);
             if (key == 'q') {
+                writer.release();
                 break;      // メインループ抜ける
             }
 
