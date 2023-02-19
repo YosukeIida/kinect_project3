@@ -167,6 +167,12 @@ int main() {
 
     cv::Point3d aruco_coord;
 
+    double aruco_marker_length_upper;
+    double aruco_marker_length_right;
+    double aruco_marker_length_lower;
+    double aruco_marker_length_left;
+
+    double aruco_marker_length_ave;
 
         // デバイスで取得した画像は k4a_device_get_capture() によって返される k4a_capture_t オブジェクトを通して取得
         // k4a_image_t は画像データと関連するメタデータを管理する
@@ -177,16 +183,6 @@ int main() {
     k4a_image_t color_image_handle;     // キャプチャのカラーセンサのハンドル
 
     uint8_t* color_image_buffer;        // カラーイメージのデータのポインタ
-
-    //カラーカメラの動画ファイルのパス
-    std::string color_movie_filepath = "C:\\Users\\student\\cpp_program\\kinect_project3\\moviedata\\colormovie.mp4";;
-
-    cv::VideoWriter writer;
-    int fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v'); // ビデオフォーマットの指定( ISO MPEG-4 / .mp4)
-
-    //動画ファイルを書き出すためのオブジェクト
-
-    writer.open(color_movie_filepath, fourcc, 30, cv::Size(COLOR_WIDTH, COLOR_HEIGHT));
 
 
 
@@ -220,6 +216,8 @@ int main() {
     cv::Point2d depth_coord_center;         // 計測対象の中心座標 [pixcel]
 
     double depth_data_center_5x5;           // 計測対象中心深度 25マス移動平均
+    double depth_data_center_3x3;
+    double depth_data_center_1x1;
 
     k4a_float2_t depth_point_2d;
 
@@ -230,6 +228,7 @@ int main() {
     int key;
     int32_t flag_depth_measure_target_coord = -1;      // 3次元座標[mm]をcsvに記録を行うフラグ
     int32_t flag_aruco_coord_write = -1;    // arucoマーカーの3次元座標[mm]をcsvに書き込むフラグ
+
 
     bool flag_close = false;
 
@@ -319,6 +318,12 @@ int main() {
 
 
             if (color_image_handle) {
+                aruco_marker_length_upper = 9999.99;
+                aruco_marker_length_right = 9999.99;
+                aruco_marker_length_lower = 9999.99;
+                aruco_marker_length_left = 9999.99;
+
+
                 // カラーイメージのハンドルから画像のデータ，高さ，幅を取得する
                 get_color_image_data(&color_image_handle, &color_image_buffer);
 
@@ -376,6 +381,13 @@ int main() {
                             //aruco_coord.x = tvecs[0][0];
                             //aruco_coord.y = tvecs[0][1];
                             //aruco_coord.z = tvecs[0][2];
+
+                            aruco_marker_length_upper = std::sqrt(std::pow(marker_corners[tvecs_iterator][0].x - marker_corners[tvecs_iterator][1].x, 2.0) + std::pow(marker_corners[tvecs_iterator][0].y - marker_corners[tvecs_iterator][1].y, 2.0));
+                            aruco_marker_length_right = std::sqrt(std::pow(marker_corners[tvecs_iterator][1].x - marker_corners[tvecs_iterator][2].x, 2.0) + std::pow(marker_corners[tvecs_iterator][1].y - marker_corners[tvecs_iterator][2].y, 2.0));
+                            aruco_marker_length_lower = std::sqrt(std::pow(marker_corners[tvecs_iterator][2].x - marker_corners[tvecs_iterator][3].x, 2.0) + std::pow(marker_corners[tvecs_iterator][2].y - marker_corners[tvecs_iterator][3].y, 2.0));
+                            aruco_marker_length_left = std::sqrt(std::pow(marker_corners[tvecs_iterator][3].x - marker_corners[tvecs_iterator][0].x, 2.0) + std::pow(marker_corners[tvecs_iterator][3].y - marker_corners[tvecs_iterator][0].y, 2.0));
+                            aruco_marker_length_ave = (aruco_marker_length_upper + aruco_marker_length_right + aruco_marker_length_lower + aruco_marker_length_left) / 4.0;
+                            std::cout << aruco_marker_length_upper << std::endl;
                         }
                         else {
                             aruco_coord.x = 9999.99;
@@ -397,12 +409,6 @@ int main() {
 
                 //cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
                 cv::imshow("colorImg", colorImg);
-
-
-
-                
-                writer.write(colorImg);
-                
 
 
             }
@@ -577,6 +583,15 @@ int main() {
                                     }
                                     measure_target_coord.z = depth_data_center_5x5;
 
+                                    depth_data_center_3x3 = 0.0;
+                                    for (int y = depth_coord_center.y - 1; y <= depth_coord_center.y + 1; y++) {
+                                        for (int x = depth_coord_center.x - 1; x <= depth_coord_center.x + 1; x++) {
+                                            depth_data_center_3x3 += depthdata[x][y] / 9.0;
+                                        }
+                                    }
+
+                                    depth_data_center_1x1 = depthdata[depth_coord_center.x][depth_coord_center.y];
+
 
                                     // カメラ中心から計測対象の中心の角度を求める(x座標)
                                     //angle_x = ((depth_coord_center.x - X_CENTER_COORD) / (double)X_CENTER_COORD) * NFOV_FOI_HOR / 2.0;
@@ -633,9 +648,16 @@ int main() {
 
             key = cv::waitKey(10);
             if (key == 'q') {
-                writer.release();
                 break;      // メインループ抜ける
             }
+
+            /*std::cout << std::fixed << std::setprecision(10) 
+                << marker_corners[0][0].x << "," << marker_corners[0][0].y << ","
+                << marker_corners[0][1].x << "," << marker_corners[0][1].y << ","
+                << marker_corners[0][2].x << "," << marker_corners[0][2].y << ","
+                << marker_corners[0][3].x << "," << marker_corners[0][3].y << ","
+                << std::endl;
+             */
 
             //if (key == 's') {
             //    std::cout << "get_depth_surface_to_csv 開始" << std::endl;
@@ -659,7 +681,8 @@ int main() {
                 fp_depth_measure_target_coord << std::fixed << std::setprecision(10) 
                     << depth_mm_3d.xyz.x << "," << -depth_mm_3d.xyz.y << "," << depth_mm_3d.xyz.z << "," 
                     << depth_coord_center.x << "," << depth_coord_center.y <<","
-                    << measure_target_coord.x << "," << measure_target_coord.y <<"," << measure_target_coord.z << std::endl;
+                    << measure_target_coord.x << "," << measure_target_coord.y <<"," << measure_target_coord.z
+                    << depth_data_center_5x5 << "," << depth_data_center_3x3 << "," << depth_data_center_1x1 << std::endl;
                 
                 flag_depth_measure_target_coord++;
             }
@@ -674,7 +697,14 @@ int main() {
                 flag_aruco_coord_write = 0;
             }
             if (flag_aruco_coord_write != -1 && flag_aruco_coord_write < 100) {
-                fp_aruco_measure_target_coord << std::fixed << std::setprecision(10) << aruco_coord.x << "," << -aruco_coord.y << "," << aruco_coord.z << std::endl;
+                fp_aruco_measure_target_coord << std::fixed << std::setprecision(10) << aruco_coord.x << "," << -aruco_coord.y << "," << aruco_coord.z << ","
+                    << marker_corners[0][0].x << "," << marker_corners[0][0].y << ","
+                    << marker_corners[0][1].x << "," << marker_corners[0][1].y << ","
+                    << marker_corners[0][2].x << "," << marker_corners[0][2].y << ","
+                    << marker_corners[0][3].x << "," << marker_corners[0][3].y << ","
+                    << aruco_marker_length_upper << "," << aruco_marker_length_right << ","
+                    << aruco_marker_length_lower << "," << aruco_marker_length_left << "," << aruco_marker_length_ave << ","
+                    << std::endl;
                 flag_aruco_coord_write++;
             }
             if (flag_aruco_coord_write == 100) {
