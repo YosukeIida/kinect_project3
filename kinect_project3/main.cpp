@@ -57,9 +57,9 @@
 //設定できる値
 //https://learn.microsoft.com/ja-jp/azure/kinect-dk/hardware-specification#rgb-camera-exposure-time-values
 
-#define DEPTH_SEARCH_BORDER  640            // 計測対象を探索する境界値 この値より手前を探索する
-#define DEPTH_IMAGE_FAR_LIMIT   650
-#define DEPTH_IMAGE_NEAR_LIMIT  550         // グレースケール画像にする最小距離
+#define DEPTH_SEARCH_BORDER  540            // 計測対象を探索する境界値 この値より手前を探索する
+#define DEPTH_IMAGE_FAR_LIMIT   550
+#define DEPTH_IMAGE_NEAR_LIMIT  450         // グレースケール画像にする最小距離
          // グレースケール画像にする最大距離
 #define X_CENTER_COORD  320                 // NFOV Unbinnedの横の中央座標
 #define Y_CENTER_COORD  288                 // NFOV Unbinnedの縦の中央座標
@@ -179,16 +179,21 @@ int main() {
     uint8_t* color_image_buffer;        // カラーイメージのデータのポインタ
 
     //カラーカメラの動画ファイルのパス
-    std::string color_movie_filepath = "C:\\Users\\student\\cpp_program\\kinect_project3\\moviedata\\colormovie.mp4";;
+    std::string color_movie_filepath = "C:\\Users\\student\\cpp_program\\kinect_project3\\moviedata\\colormovie.mp4";
+    //デプスカメラの動画ファイルのパス
+    std::string depth_movie_filepath = "C:\\Users\\student\\cpp_program\\kinect_project3\\moviedata\\depthmovie.mp4";
+    
+    cv::VideoWriter color_writer;
+    cv::VideoWriter depth_writer;
 
-    cv::VideoWriter writer;
     int fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v'); // ビデオフォーマットの指定( ISO MPEG-4 / .mp4)
 
     //動画ファイルを書き出すためのオブジェクト
 
-    writer.open(color_movie_filepath, fourcc, 30, cv::Size(COLOR_WIDTH, COLOR_HEIGHT));
+    color_writer.open(color_movie_filepath, fourcc, 30, cv::Size(COLOR_WIDTH, COLOR_HEIGHT));
 
-
+    depth_writer.open(depth_movie_filepath, fourcc, 30, cv::Size(DEPTH_WIDTH, DEPTH_HEIGHT));
+    
 
 
         // デプスイメージ
@@ -398,11 +403,6 @@ int main() {
                 //cv::resize(colorImg, colorImg, cv::Size(), 0.5, 0.5);
                 cv::imshow("colorImg", colorImg);
 
-
-
-                
-                writer.write(colorImg);
-                
 
 
             }
@@ -633,7 +633,8 @@ int main() {
 
             key = cv::waitKey(10);
             if (key == 'q') {
-                writer.release();
+                color_writer.release();
+                depth_writer.release();
                 break;      // メインループ抜ける
             }
 
@@ -655,7 +656,9 @@ int main() {
                 flag_depth_measure_target_coord = 0;
             }
 
-            if (flag_depth_measure_target_coord != -1 && flag_depth_measure_target_coord < 100) {
+            if (flag_depth_measure_target_coord != -1 && flag_depth_measure_target_coord < 200) {
+                color_writer.write(colorImg);
+                depth_writer.write(depthcoloredImg);
                 fp_depth_measure_target_coord << std::fixed << std::setprecision(10) 
                     << depth_mm_3d.xyz.x << "," << -depth_mm_3d.xyz.y << "," << depth_mm_3d.xyz.z << "," 
                     << depth_coord_center.x << "," << depth_coord_center.y <<","
@@ -663,7 +666,7 @@ int main() {
                 
                 flag_depth_measure_target_coord++;
             }
-            if (flag_depth_measure_target_coord == 100) {
+            if (flag_depth_measure_target_coord == 200) {
                 std::cout << "\n\n3次元データ記録終了\n\n" << std::endl;
                 flag_depth_measure_target_coord = -1;
                 flag_close = true;
@@ -673,11 +676,11 @@ int main() {
                 std::cout << "\n\nArUco記録開始\n\n" << std::endl;
                 flag_aruco_coord_write = 0;
             }
-            if (flag_aruco_coord_write != -1 && flag_aruco_coord_write < 100) {
+            if (flag_aruco_coord_write != -1 && flag_aruco_coord_write < 200) {
                 fp_aruco_measure_target_coord << std::fixed << std::setprecision(10) << aruco_coord.x << "," << -aruco_coord.y << "," << aruco_coord.z << std::endl;
                 flag_aruco_coord_write++;
             }
-            if (flag_aruco_coord_write == 100) {
+            if (flag_aruco_coord_write == 200) {
                 std::cout << "\n\nArUco記録終了\n\n" << std::endl;
                 flag_aruco_coord_write = -1;
                 flag_close = true;
