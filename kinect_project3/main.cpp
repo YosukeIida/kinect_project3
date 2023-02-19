@@ -54,7 +54,8 @@
 #define MARKER_LENGTH       0.0176           // ArUcoマーカー1辺の長さ [m]
 
 #define COLOR_IMAGE_EXPOSURE_TIME       	66670   // カラーイメージの露出時間
-//https://learn.microsoft.com/ja-jp/azure/kinect-dk/hardware-specification#depth-camera-supported-operating-modes
+//設定できる値
+//https://learn.microsoft.com/ja-jp/azure/kinect-dk/hardware-specification#rgb-camera-exposure-time-values
 
 #define DEPTH_SEARCH_BORDER  640            // 計測対象を探索する境界値 この値より手前を探索する
 #define DEPTH_IMAGE_FAR_LIMIT   650
